@@ -327,8 +327,8 @@ class Node(Base, AlchemyQuery):
     def _set_children(self, children=[], group=None, relation_type=None, metadata=[], discriminator=None):
         Edge.update_child_edges( self, children, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
-    def _get_child_ids(self, cls=None, group=None, relation_type=None, relation_type=None, exclude_subclasses=False):
-        return self._get_related_node_ids( Edge.CHILD, cls, group, relation_type, relation_type, exclude_subclasses )
+    def _get_child_ids(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
+        return self._get_related_node_ids( Edge.CHILD, cls, group, relation_type, relation_type, exclude_subclasses, order_by)
     def _set_child_ids(self, child_ids=[], group=None, relation_type=None, metadata=[], discriminator=None):
         Edge.update_child_edges_by_id( self, child_ids, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
@@ -338,8 +338,8 @@ class Node(Base, AlchemyQuery):
     def _set_parents(self, parents=[], group=None, relation_type=None, metadata=[], discriminator=None):
         Edge.update_parent_edges( self, parents, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
-    def _get_parent_ids(self, cls=None, group=None, relation_type=None, exclude_subclasses=False):
-        return self._get_related_node_ids( Edge.PARENT, cls, group, exclude_subclasses )
+    def _get_parent_ids(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
+        return self._get_related_node_ids( Edge.PARENT, cls, group, exclude_subclasses, order_by )
     def _set_parent_ids(self, parent_ids=[], group=None, relation_type=None, metadata=[], discriminator=None):
         Edge.update_parent_edges_by_id( self, parent_ids, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
@@ -357,7 +357,7 @@ class Node(Base, AlchemyQuery):
             query = query.order_by(order_by)
         return query.all()
     
-    def _get_related_node_ids(self, relation=Edge.CHILD, cls=None, group=None, relation_type=None, exclude_subclasses=False):
+    def _get_related_node_ids(self, relation=Edge.CHILD, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
         if cls == None:
             cls = Node
         elif isinstance(cls,list):
@@ -365,9 +365,12 @@ class Node(Base, AlchemyQuery):
         clauses = self._get_related_nodes_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
         query = Session.query(Node.id if isinstance(cls,list) else cls.id)
         node_edge = (Edge, Node.id==Edge.right_id) if relation==Edge.CHILD else (Edge, Node.id==Edge.left_id)
-        return query.join(node_edge).filter(and_(*clauses)).all()
+        query = query.join(node_edge).filter(and_(*clauses))
+        if order_by:
+            query = query.order_by(order_by)
+        return query.all()
 
-    def _get_related_nodes_query_clauses(self, relation=Edge.CHILD, group=None, exclusive_cls=None):
+    def _get_related_nodes_query_clauses(self, relation=Edge.CHILD, group=None, relation_type=None, exclusive_cls=None):
         """docstring for _get_related_nodes_query_clauses"""
         clauses = []
         if relation==Edge.CHILD:
@@ -391,31 +394,31 @@ class Node(Base, AlchemyQuery):
 
         return clauses
 
-    def _get_child(self, cls = None):
+    def _get_child(self, cls=None):
         nodes = self._get_children(cls)
         if len(nodes) == 1:
             return nodes[0]
         return None
 
-    def _get_parent(self, cls = None):
+    def _get_parent(self, cls=None):
         nodes = self._get_parents(cls)
         if len(nodes) == 1:
             return nodes[0]
         return None
 
-    def _get_child_edges(self, cls=None, group=None, exclude_subclasses=False):
-        return self._get_related_edges(Edge.CHILD, cls, group, exclude_subclasses)
+    def _get_child_edges(self, cls=None, group=None, relation_type=None, exclude_subclasses=False):
+        return self._get_related_edges(Edge.CHILD, cls, group, relation_type, exclude_subclasses)
 
-    def _get_parent_edges(self, cls=None, group=None, exclude_subclasses=False):
-        return self._get_related_edges(Edge.PARENT, cls, group, exclude_subclasses)
+    def _get_parent_edges(self, cls=None, group=None, relation_type=None, exclude_subclasses=False):
+        return self._get_related_edges(Edge.PARENT, cls, group, relation_type, exclude_subclasses)
 
-    def _get_related_edges(self, relation=Edge.CHILD, cls=None, group=None, exclude_subclasses=False):
+    def _get_related_edges(self, relation=Edge.CHILD, cls=None, group=None, relation_type=None, exclude_subclasses=False):
         # print "_get_related_nodes", relation, cls, group, exclude_subclasses
         if cls == None:
             cls = Node
         elif isinstance(cls,list):
             exclude_subclasses = True
-        clauses = self._get_related_nodes_query_clauses(relation, group, cls if exclude_subclasses else None)
+        clauses = self._get_related_nodes_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
         # print clauses
         query = Session.query(Edge)
         cls = Node if isinstance(cls,list) else cls
