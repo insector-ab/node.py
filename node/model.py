@@ -6,6 +6,8 @@ from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, Uni
 from sqlalchemy.orm import relationship, backref, EXT_CONTINUE, deferred
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.interfaces import MapperExtension
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.sql.expression import _UnaryExpression
 
 from node.init import Session, Base
 
@@ -40,43 +42,80 @@ class Callback(MapperExtension):
         return EXT_CONTINUE
 
 
+
 class AlchemyQuery(object):
 
     @classmethod
     def get(cls, id):
         try:
-            result = Session.query(cls).get(id) 
+            result = nopy.Session.query(cls).get(id) 
         except NoResultFound:
             result = None
             
         return result
 
     @classmethod
-    def query(cls, *args, **kw):
-        query = Session.query(cls)
+    def query(cls, *args, **kws):
+        query = nopy.Session.query(cls)
 
         if len(args) > 0:
             query = query.filter(*args)
-        
-        if kw.has_key('order_by'):
-            query = query.order_by(kw.get('order_by'))
+
+        # exclude subclasses
+        if kws.get('exclude_subclasses', False):
+            query = query.filter(Node.discriminator==cls.get_polymorphic_identity())
+
+        # Sort result
+        order_by = kws.get('order_by', None)
+        order_desc = kws.get('desc', False)
+        if isinstance(order_by, _UnaryExpression) or order_by:            
+            if isinstance(order_by, (str, unicode)):
+                order_by = getattr(cls, order_by, None)
+            
+            if isinstance(order_by, (InstrumentedAttribute, _UnaryExpression)):
+                if order_desc:
+                    query = query.order_by(desc(order_by))
+                else:
+                    query = query.order_by(order_by)
+
+        # Limit result
+        if kws.has_key('limit'):
+            query = query.limit(kws.get('limit')) 
+
+        # Offset result
+        if kws.has_key('offset'):
+            query = query.offset(kws.get('offset')) 
 
         return query
 
     @classmethod
-    def first(cls, *args, **kw):
-        query = cls.query(*args, **kw)
+    def first(cls, *args, **kws):
+        query = cls.query(*args, **kws)
         return query.first()
 
     @classmethod
-    def one(cls, *args, **kw):
-        query = cls.query(*args, **kw)
+    def one(cls, *args, **kws):
+        query = cls.query(*args, **kws)
+
+        if not query.count() == 1:
+            raise errors.BaseError("Query.one() failed to collect single row, found:{0}".format(query.count()))
+
         return query.one()
 
     @classmethod
-    def all(cls, *args, **kw):
-        query = cls.query(*args, **kw)
+    def all(cls, *args, **kws):
+        query = cls.query(*args, **kws)
         return query.all()
+
+
+    @classmethod
+    def count(cls, *args, **kws):
+        query = cls.query(*args, **kws)
+        return query.count()
+
+    @classmethod
+    def get_polymorphic_identity(cls):
+        return cls.__mapper_args__['polymorphic_identity']
 
 
 class Edge(Base, AlchemyQuery):
