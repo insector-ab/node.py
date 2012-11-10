@@ -48,7 +48,7 @@ class AlchemyQuery(object):
     @classmethod
     def get(cls, id):
         try:
-            result = nopy.Session.query(cls).get(id) 
+            result = Session.query(cls).get(id) 
         except NoResultFound:
             result = None
             
@@ -56,7 +56,7 @@ class AlchemyQuery(object):
 
     @classmethod
     def query(cls, *args, **kws):
-        query = nopy.Session.query(cls)
+        query = Session.query(cls)
 
         if len(args) > 0:
             query = query.filter(*args)
@@ -125,9 +125,9 @@ class Edge(Base, AlchemyQuery):
     __tablename__ = "edges"
     id = Column(Integer, primary_key=True)
     uuid = Column(Unicode(255), unique=True)
+    edge_key = Column(Unicode(100), unique=True)
     name = Column(Unicode(255))
     group_name = Column(Unicode(100))
-    edge_key = Column(Unicode(100), unique=True)
     relation_type = Column(Unicode(100))
     meta_data = Column(PickleType(mutable=True))
 
@@ -141,13 +141,6 @@ class Edge(Base, AlchemyQuery):
                             backref="parent_relations",
                             primaryjoin="Edge.right_id==Node.id",
                             lazy='joined')
-                            
-    reference_id = Column(Integer, ForeignKey('edges.id')) 
-    reference_edge = relationship(  "Edge",
-                                    primaryjoin="Edge.reference_id==Edge.id",
-                                    uselist=False,
-                                    remote_side=[id])
-
  
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
@@ -187,7 +180,7 @@ class Edge(Base, AlchemyQuery):
             raise errors.BaseError('Cirular reference')
 
     @staticmethod
-    def create_edge(parent, child, group=None, metadata=None):
+    def create_edge(parent, child, group=None, relation_type=None, metadata=None):
         if isinstance(parent, int):
             parent = Node.get(parent)
         if isinstance(child, int):
@@ -197,6 +190,7 @@ class Edge(Base, AlchemyQuery):
         edge.parent = parent
         edge.child = child
         edge.group_name = group
+        edge.relation_type = relation_type
         return edge
 
     @staticmethod
@@ -242,8 +236,6 @@ class Edge(Base, AlchemyQuery):
                 new_edge = Edge.create_edge( related_node, node, group, md )
             Session.add( new_edge )
 
-
-
     @staticmethod
     def update_child_edges_by_id(parent, child_ids, **kws):
         """Update parent's child edges. child_ids=[list of child ids], group="name of edge group", metadata=[list of dicts] """
@@ -253,7 +245,6 @@ class Edge(Base, AlchemyQuery):
     def update_parent_edges_by_id(child, parent_ids, **kws):
         """Update child's parent edges. parent_ids=[list of parent ids], group="name of edge group", discriminator="class discriminator", metadata=[list of dicts] """
         Edge.update_related_edges_by_id( child, parent_ids, Edge.PARENT, **kws )
-
 
     @staticmethod
     def update_related_edges_by_id(node, related_ids, relation=CHILD, group=None, relation_type=None, discriminator=None, metadata=None):
@@ -285,7 +276,7 @@ class Edge(Base, AlchemyQuery):
         # iterate non existing nodes and create new edges
         for i, related_node_id in enumerate(related_ids):
             md = metadata[i] if metadata and i < len(metadata) else None
-            create_edge_args = ((node, related_node_id) if relation == Edge.CHILD else (related_node_id, node)) + (group, md)
+            create_edge_args = ((node, related_node_id) if relation == Edge.CHILD else (related_node_id, node)) + (group, relation_type, md)
             new_edge = Edge.create_edge( *create_edge_args )
             Session.add( new_edge )
 
@@ -346,6 +337,7 @@ class Node(Base, AlchemyQuery):
 
     def _get_child(self, cls=None, group=None, relation_type=False, exclude_subclasses=False, order_by=None):       
         return self._get_related_node_query(Edge.CHILD, cls, group, relation_type, exclude_subclasses, order_by).first()
+
     def _get_parent(self, cls=None, group=None, relation_type=False, exclude_subclasses=False, order_by=None):
         return self._get_related_node_query(Edge.PARENT, cls, group, relation_type, exclude_subclasses, order_by).first()
 
@@ -407,13 +399,11 @@ class Node(Base, AlchemyQuery):
         return clauses
 
 
-    def _get_child_edges(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None
-, order_by=None):
-        return self._get_related_edge_query(Edge.CHILD, cls, group, relation_type, exclude_subclasses).all()
+    def _get_child_edges(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
+        return self._get_related_edge_query(Edge.CHILD, cls, group, relation_type, exclude_subclasses, order_by).all()
 
-    def _get_parent_edges(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None
-, order_by=None):
-        return self._get_related_edge_query(Edge.PARENT, cls, group, relation_type, exclude_subclasses).all()
+    def _get_parent_edges(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
+        return self._get_related_edge_query(Edge.PARENT, cls, group, relation_type, exclude_subclasses, order_by).all()
 
     def _get_child_edge(self, cls=None, group=None, relation_type=False, exclude_subclasses=False, order_by=None):
         return self._get_related_edge_query(Edge.CHILD, cls, group, relation_type, exclude_subclasses, order_by).first()
@@ -439,7 +429,6 @@ class Node(Base, AlchemyQuery):
                 query = query.order_by(order_by)
         return query
 
-        
     @classmethod
     def get_polymorphic_identity(cls):
         return cls.__mapper_args__['polymorphic_identity']
@@ -449,70 +438,73 @@ class Node(Base, AlchemyQuery):
 # = Descriptors =
 # ===============
         
-
 class Children(object):
 
-    def __init__(self, cls=None, group_name=None):
+    def __init__(self, cls=None, group_name=None, relation_type=None):
         super(Children, self).__init__()
         self.cls = cls
         self.group_name = group_name
+        self.relation_type = relation_type
 
     def __get__(self, instance, cls):
-        return instance._get_children( self.cls or Node, self.group_name )
+        return instance._get_children( self.cls or Node, self.group_name, self.relation_type )
 
     def __set__(self, instance, value):
         if self.cls:
             for child in value:
                 if not isinstance(child, self.cls):
                     raise ValueError("One of the children passed as argument is of wrong type")
-        instance._set_children( value, self.group_name )
+        instance._set_children( value, self.group_name, self.relation_type )
 
 
 class ChildIDs(object):
 
-    def __init__(self, cls=None, group_name=None):
+    def __init__(self, cls=None, group_name=None, relation_type=None):
         super(ChildIDs, self).__init__()
         self.cls = cls
         self.group_name = group_name
+        self.relation_type = relation_type
 
     def __get__(self, instance, cls):
-        return instance._get_child_ids( self.cls or Node, self.group_name )
+        return instance._get_child_ids( self.cls or Node, self.group_name, self.relation_type )
 
     def __set__(self, instance, value):
         ids = map(int, value)
-        instance._set_child_ids( ids, self.group_name )
+        instance._set_child_ids( ids, self.group_name, self.relation_type )
 
 
 
 class Parents(object):
 
-    def __init__(self, cls=None, group_name=None):
+    def __init__(self, cls=None, group_name=None, relation_type=None):
         super(Parents, self).__init__()
         self.cls = cls
         self.group_name = group_name
+        self.relation_type = relation_type
 
     def __get__(self, instance, cls):
-        return instance._get_parents( self.cls or Node, self.group_name )
+        return instance._get_parents( self.cls or Node, self.group_name, self.relation_type )
 
     def __set__(self, instance, value):
         if self.cls:
             for parent in value:
                 if not isinstance(parent, self.cls):
                     raise ValueError("One of the parents passed as argument is of wrong type")
-        instance._set_parents( value, self.group_name )
+        instance._set_parents( value, self.group_name, self.relation_type )
 
 
 class ParentIDs(object):
 
-    def __init__(self, cls=None, group_name=None):
+    def __init__(self, cls=None, group_name=None, relation_type=None):
         super(ParentIDs, self).__init__()
         self.cls = cls
         self.group_name = group_name
+        self.relation_type = relation_type
 
     def __get__(self, instance, cls):
-        return instance._get_parent_ids( self.cls or Node, self.group_name )
+        return instance._get_parent_ids( self.cls or Node, self.group_name, self.relation_type )
 
     def __set__(self, instance, value):
         ids = map(int, value)
-        instance._set_parent_ids( ids, self.group_name )
+        instance._set_parent_ids( ids, self.group_name, self.relation_type )
 
