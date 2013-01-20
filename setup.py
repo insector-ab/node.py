@@ -14,6 +14,7 @@ from setuptools import setup, find_packages
 requires = [
     'SQLAlchemy>=0.7.9',   
     'Whoosh>=2.4.0',
+    'webob==1.2b3'
 ]
 
 setup(name='node',
