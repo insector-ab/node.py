@@ -2,7 +2,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, join, desc, PickleType
+from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, join, desc, PickleType, or_
 from sqlalchemy.orm import relationship, backref, EXT_CONTINUE, deferred
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.interfaces import MapperExtension
