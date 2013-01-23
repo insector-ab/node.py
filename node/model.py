@@ -9,7 +9,7 @@ from sqlalchemy.orm.interfaces import MapperExtension
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.expression import _UnaryExpression
 
-from node.init import Session, Base
+from node import Session, Base
 
 class Callback(MapperExtension):
     """ Extention to add pre-commit hooks.
@@ -279,6 +279,11 @@ class Edge(Base, AlchemyQuery):
             create_edge_args = ((node, related_node_id) if relation == Edge.CHILD else (related_node_id, node)) + (group, relation_type, md)
             new_edge = Edge.create_edge( *create_edge_args )
             Session.add( new_edge )
+    
+    @staticmethod
+    def remove_all_edges(node):
+        Session.query(Edge).filter(or_(Edge.left_id==node.id, Edge.right_id==node.id)).delete()
+        
 
 
 

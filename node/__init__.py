@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
-import webob
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 
+__all__ = ['Base', 'Session']
 
-class Request(webob.Request):
+# Session manager
+Session = scoped_session(sessionmaker(autoflush=False))
 
-    def __init__(self, environ, *args, **kws):
-        super(Request, self).__init__(environ, *args, **kws)
+# Node(Base)
+Base = declarative_base()
 
-    @property
-    def session(self):
-        return self.environ['node.session']
+# config = {  'sqlalchemy.url':'mysql://root@localhost:3306/nodes',
+#             'sqlalchemy.pool_recycle':3600,
+#             'sqlalchemy.echo':False}
+
+# Configure engine
+# engine = engine_from_config(config, 'sqlalchemy.')
+# Session.configure(bind=engine)
