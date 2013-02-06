@@ -513,3 +513,13 @@ class ParentIDs(object):
         ids = map(int, value)
         instance._set_parent_ids( ids, self.group_name, self.relation_type )
 
+
+
+Node.children = Children(Node)
+Node.child_ids = ChildIDs(Node)
+
+Node.parents = Parents(Node)
+Node.parent_ids = ParentIDs(Node)
+
+
+
