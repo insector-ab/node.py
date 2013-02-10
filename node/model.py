@@ -172,12 +172,10 @@ class Edge(Base, AlchemyQuery):
         """docstring for check_circular_reference"""
         if parent and parent == child:
             raise errors.BaseError('Cirular reference')
-        # redundant id check?
-        if parent.id and child.id and parent.id == child.id:
-            raise errors.BaseError('Cirular reference')
         # recursive find parent as child or grandchild
-        if parent and child and child.is_circular_reference(parent):
-            raise errors.BaseError('Cirular reference')
+        if parent and child:
+            for grandchild in child.children:
+                Edge.check_circular_reference(parent,grandchild)
 
     @staticmethod
     def create_edge(parent, child, group=None, relation_type=None, metadata=None):
