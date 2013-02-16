@@ -8,8 +8,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.interfaces import MapperExtension
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.expression import _UnaryExpression
+from sqlalchemy.orm.session import object_session
 
-from node import Session, Base
+from node import Base
 
 class Callback(MapperExtension):
     """ Extention to add pre-commit hooks.
@@ -42,21 +43,21 @@ class Callback(MapperExtension):
         return EXT_CONTINUE
 
 
+class Database(object):
 
-class AlchemyQuery(object):
+    def __init__(self, session):
+        self.session = session
 
-    @classmethod
-    def get(cls, id):
+    def get(self, cls, id):
         try:
-            result = Session.query(cls).get(id) 
+            result = self.session.query(cls).get(id) 
         except NoResultFound:
             result = None
             
         return result
 
-    @classmethod
-    def query(cls, *args, **kws):
-        query = Session.query(cls)
+    def query(self, cls, *args, **kws):
+        query = self.session.query(cls)
 
         if len(args) > 0:
             query = query.filter(*args)
@@ -88,37 +89,30 @@ class AlchemyQuery(object):
 
         return query
 
-    @classmethod
-    def first(cls, *args, **kws):
-        query = cls.query(*args, **kws)
+    def first(self, cls, *args, **kws):
+        query = self.query(cls, *args, **kws)
         return query.first()
 
-    @classmethod
-    def one(cls, *args, **kws):
-        query = cls.query(*args, **kws)
+    def one(self, cls, *args, **kws):
+        query = self.query(cls, *args, **kws)
 
         if not query.count() == 1:
             raise errors.BaseError("Query.one() failed to collect single row, found:{0}".format(query.count()))
 
         return query.one()
 
-    @classmethod
-    def all(cls, *args, **kws):
-        query = cls.query(*args, **kws)
+    def all(self, cls, *args, **kws):
+        query = self.query(cls, *args, **kws)
         return query.all()
 
 
-    @classmethod
-    def count(cls, *args, **kws):
-        query = cls.query(*args, **kws)
+    def count(self, cls, *args, **kws):
+        query = self.query(cls, *args, **kws)
         return query.count()
 
-    @classmethod
-    def get_polymorphic_identity(cls):
-        return cls.__mapper_args__['polymorphic_identity']
 
 
-class Edge(Base, AlchemyQuery):
+class Edge(Base):
     CHILD = u"child"
     PARENT = u"parent"
         
@@ -214,8 +208,10 @@ class Edge(Base, AlchemyQuery):
             clauses = clauses + (Edge.relation_type==relation_type, )
         if discriminator:
             clauses = clauses + (Node.discriminator==discriminator, )
+
         # iterate existing edges
-        existing_edges = Session.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
+        s = object_session(node)
+        existing_edges = s.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
         for edge in existing_edges:
             related_node = edge.child if relation==Edge.CHILD else edge.parent
             if related_node in related_nodes:
@@ -226,7 +222,7 @@ class Edge(Base, AlchemyQuery):
                     metadata = metadata[:i] + metadata[i+1:] # remove index
                 related_nodes = related_nodes[:i] + related_nodes[i+1:] # remove same index
             else:
-                Session.delete(edge)
+                s.delete(edge)
         # iterate non existing nodes and create new edges
         for i, related_node in enumerate(related_nodes):
             md = metadata[i] if metadata and i < len(metadata) else None
@@ -234,7 +230,7 @@ class Edge(Base, AlchemyQuery):
                 new_edge = Edge.create_edge( node, related_node, group, md )
             else:
                 new_edge = Edge.create_edge( related_node, node, group, md )
-            Session.add( new_edge )
+            s.add( new_edge )
 
     @staticmethod
     def update_child_edges_by_id(parent, child_ids, **kws):
@@ -261,7 +257,8 @@ class Edge(Base, AlchemyQuery):
             clauses = clauses + (Node.discriminator==discriminator, )
 
         # iterate existing edges
-        existing_edges = Session.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
+        s = object_session(node)
+        existing_edges = s.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
         for edge in existing_edges:
             related_node_id = edge.right_id if relation==Edge.CHILD else edge.left_id
             if related_node_id in related_ids:
@@ -272,22 +269,22 @@ class Edge(Base, AlchemyQuery):
                     metadata = metadata[:i] + metadata[i+1:] # remove index
                 related_ids = related_ids[:i] + related_ids[i+1:] # remove same index
             else:
-                Session.delete(edge)
+                s.delete(edge)
         # iterate non existing nodes and create new edges
         for i, related_node_id in enumerate(related_ids):
             md = metadata[i] if metadata and i < len(metadata) else None
             create_edge_args = ((node, related_node_id) if relation == Edge.CHILD else (related_node_id, node)) + (group, relation_type, md)
             new_edge = Edge.create_edge( *create_edge_args )
-            Session.add( new_edge )
+            s.add( new_edge )
     
     @staticmethod
     def remove_all_edges(node):
-        Session.query(Edge).filter(or_(Edge.left_id==node.id, Edge.right_id==node.id)).delete()
+        s = object_session(node)
+        s.query(Edge).filter(or_(Edge.left_id==node.id, Edge.right_id==node.id)).delete()
         
 
 
-
-class Node(Base, AlchemyQuery):
+class Node(Base):
     __tablename__ = "nodes"
     id = Column(Integer, primary_key=True)
     uuid = Column(Unicode(255), unique=True)
@@ -353,7 +350,7 @@ class Node(Base, AlchemyQuery):
         elif isinstance(cls,list):
             exclude_subclasses = True
         clauses = self._get_related_node_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
-        query = Session.query(Node if isinstance(cls,list) else cls)
+        query = object_session(self).query(Node if isinstance(cls,list) else cls)
         node_edge = (Edge, Node.id==Edge.right_id) if relation==Edge.CHILD else (Edge, Node.id==Edge.left_id)
         query = query.join(node_edge).filter(and_(*clauses))
         if order_by:
@@ -369,7 +366,7 @@ class Node(Base, AlchemyQuery):
         elif isinstance(cls,list):
             exclude_subclasses = True
         clauses = self._get_related_node_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
-        query = Session.query(Node.id if isinstance(cls,list) else cls.id)
+        query = object_session(self).query(Node.id if isinstance(cls,list) else cls.id)
         node_edge = (Edge, Node.id==Edge.right_id) if relation==Edge.CHILD else (Edge, Node.id==Edge.left_id)
         query = query.join(node_edge).filter(and_(*clauses))
         if order_by:
@@ -423,7 +420,7 @@ class Node(Base, AlchemyQuery):
             exclude_subclasses = True
         clauses = self._get_related_node_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
         # print clauses
-        query = Session.query(Edge)
+        query = object_session(self).query(Edge)
         cls = Node if isinstance(cls,list) else cls
         node_edge = (cls, cls.id==Edge.right_id) if relation==Edge.CHILD else (cls, cls.id==Edge.left_id)
         query = query.join(node_edge).filter(and_(*clauses))
