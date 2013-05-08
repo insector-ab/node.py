@@ -123,7 +123,7 @@ class Edge(Base):
     name = Column(Unicode(255))
     group_name = Column(Unicode(100))
     relation_type = Column(Unicode(100))
-    meta_data = Column(PickleType(mutable=True))
+    meta_data = Column(PickleType()) # Possible we need to add Mutable Dict
 
     left_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship(  "Node",

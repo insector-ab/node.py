@@ -13,6 +13,7 @@ from whoosh.writing import AsyncWriter
 from whoosh.qparser import MultifieldParser, QueryParser #, WildcardPlugin, PrefixPlugin
 from whoosh.analysis import SimpleAnalyzer
 
+# To use index.py, required: Whoosh>=2.4.0
 
 def to_unicode(di):
     for k,v in di.iteritems():

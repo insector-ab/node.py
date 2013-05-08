@@ -12,8 +12,7 @@ from setuptools import setup, find_packages
 # aptitude install python-mysqldb
 
 requires = [
-    'SQLAlchemy>=0.7.9',   
-    'Whoosh>=2.4.0'
+    'SQLAlchemy>=0.7.9'
     ]
 
 setup(name='node',
