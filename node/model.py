@@ -5,6 +5,7 @@ from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, Uni
 from sqlalchemy.orm import relationship, EXT_CONTINUE
 from sqlalchemy.orm.interfaces import MapperExtension
 from sqlalchemy.orm.session import object_session
+from sqlalchemy.ext.mutable import Mutable
 
 from node import Base
 
@@ -37,6 +38,33 @@ class Callback(MapperExtension):
         f = getattr(instance, "_pre_update", None)
         if f: f()
         return EXT_CONTINUE
+
+
+class MutableDict(Mutable, dict):
+    """data = Column(MutableDict.as_mutable(PickleType))"""
+
+    @classmethod
+    def coerce(cls, key, value):
+        if not isinstance(value, MutableDict):
+            if isinstance(value, dict):
+                return MutableDict(value)
+            return Mutable.coerce(key, value)
+        else:
+            return value
+
+    def __delitem(self, key):
+        dict.__delitem__(self, key)
+        self.changed()
+
+    def __setitem__(self, key, value):
+        dict.__setitem__(self, key, value)
+        self.changed()
+
+    def __getstate__(self):
+        return dict(self)
+
+    def __setstate__(self, state):
+        self.update(self)
 
 
 class Edge(Base):
