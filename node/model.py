@@ -2,8 +2,8 @@
 import datetime
 import uuid
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, join, desc, PickleType, or_
-from sqlalchemy.orm import relationship, backref, EXT_CONTINUE, deferred
+from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, desc, PickleType, or_
+from sqlalchemy.orm import relationship, EXT_CONTINUE
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.interfaces import MapperExtension
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -26,7 +26,7 @@ class Callback(MapperExtension):
         f = getattr(instance, "_pre_insert", None)
         if f: f()
         return EXT_CONTINUE
-        
+
     def after_insert(self, mapper, connection, instance):
         f = getattr(instance, "_post_insert", None)
         if f: f()
@@ -50,10 +50,10 @@ class Database(object):
 
     def get(self, cls, id):
         try:
-            result = self.session.query(cls).get(id) 
+            result = self.session.query(cls).get(id)
         except NoResultFound:
             result = None
-            
+
         return result
 
     def query(self, cls, *args, **kws):
@@ -69,10 +69,10 @@ class Database(object):
         # Sort result
         order_by = kws.get('order_by', None)
         order_desc = kws.get('desc', False)
-        if isinstance(order_by, _UnaryExpression) or order_by:            
+        if isinstance(order_by, _UnaryExpression) or order_by:
             if isinstance(order_by, (str, unicode)):
                 order_by = getattr(cls, order_by, None)
-            
+
             if isinstance(order_by, (InstrumentedAttribute, _UnaryExpression)):
                 if order_desc:
                     query = query.order_by(desc(order_by))
@@ -81,11 +81,11 @@ class Database(object):
 
         # Limit result
         if kws.has_key('limit'):
-            query = query.limit(kws.get('limit')) 
+            query = query.limit(kws.get('limit'))
 
         # Offset result
         if kws.has_key('offset'):
-            query = query.offset(kws.get('offset')) 
+            query = query.offset(kws.get('offset'))
 
         return query
 
@@ -97,7 +97,7 @@ class Database(object):
         query = self.query(cls, *args, **kws)
 
         if not query.count() == 1:
-            raise errors.BaseError("Query.one() failed to collect single row, found:{0}".format(query.count()))
+            raise Exception("Query.one() failed to collect single row, found:{0}".format(query.count()))
 
         return query.one()
 
@@ -115,7 +115,7 @@ class Database(object):
 class Edge(Base):
     CHILD = u"child"
     PARENT = u"parent"
-        
+
     __tablename__ = "edges"
     id = Column(Integer, primary_key=True)
     uuid = Column(Unicode(255), unique=True)
@@ -135,7 +135,7 @@ class Edge(Base):
                             backref="parent_relations",
                             primaryjoin="Edge.right_id==Node.id",
                             lazy='joined')
- 
+
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
         self.uuid = unicode(uuid.uuid1().get_hex())
@@ -144,11 +144,11 @@ class Edge(Base):
     def _set_metadata_value(self, key, value):
         if not self.meta_data:
             self.meta_data = {}
-        # Remove keys with value None 
+        # Remove keys with value None
         if value == None:
             try:
-                del(self.meta_data[key])                
-            except Exception, e:
+                del(self.meta_data[key])
+            except Exception:
                 pass
         else:
             self.meta_data[key] = value
@@ -165,7 +165,7 @@ class Edge(Base):
     def check_circular_reference(parent, child):
         """docstring for check_circular_reference"""
         if parent and parent == child:
-            raise errors.BaseError('Cirular reference')
+            raise Exception('Cirular reference')
         # recursive find parent as child or grandchild
         if parent and child:
             for grandchild in child.children:
@@ -274,12 +274,12 @@ class Edge(Base):
             create_edge_args = ((node, related_node_id) if relation == Edge.CHILD else (related_node_id, node)) + (group, relation_type, md)
             new_edge = Edge.create_edge( *create_edge_args )
             s.add( new_edge )
-    
+
     @staticmethod
     def remove_all_edges(node):
         s = object_session(node)
         s.query(Edge).filter(or_(Edge.left_id==node.id, Edge.right_id==node.id)).delete()
-        
+
 
 
 class Node(Base):
@@ -291,18 +291,18 @@ class Node(Base):
     name = Column(Unicode(255))
     description = Column(UnicodeText)
     node_key = Column(Unicode(100), unique=True)
-    
+
     # Dates
     created_at = Column(DateTime(), default=datetime.datetime.now)
     modified_at = Column(DateTime(), default=datetime.datetime.now)
 
-    # Users 
+    # Users
     created_by_id = Column(Integer)
     modified_by_id = Column(Integer)
 
     def __init__(self, *args, **kw):
         super(Node, self).__init__(*args, **kw)
-        self.uuid = unicode(kw.get('uuid', uuid.uuid1().get_hex()))      
+        self.uuid = unicode(kw.get('uuid', uuid.uuid1().get_hex()))
 
     def __unicode__(self):
         return self.name or ""
@@ -335,7 +335,7 @@ class Node(Base):
         Edge.update_parent_edge_by_id( self, parent_ids, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
 
-    def _get_child(self, cls=None, group=None, relation_type=False, exclude_subclasses=False, order_by=None):       
+    def _get_child(self, cls=None, group=None, relation_type=False, exclude_subclasses=False, order_by=None):
         return self._get_related_node_query(Edge.CHILD, cls, group, relation_type, exclude_subclasses, order_by).first()
 
     def _get_parent(self, cls=None, group=None, relation_type=False, exclude_subclasses=False, order_by=None):
@@ -357,7 +357,7 @@ class Node(Base):
             else:
                 query = query.order_by(order_by)
         return query
-    
+
     def _get_related_node_id_query(self, relation=Edge.CHILD, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
         if cls == None:
             cls = Node
@@ -383,7 +383,7 @@ class Node(Base):
             clauses.append(Edge.child==self)
         if exclusive_cls:
             clauses.append(Node.discriminator.in_(self._get_discriminators(exclusive_cls)))
-        
+
         if not group == False:
             if group:
                 clauses.append(Edge.group_name==group)
@@ -394,7 +394,7 @@ class Node(Base):
             if relation_type:
                 clauses.append(Edge.relation_type==relation_type)
             else:
-                clauses.append(Edge.relation_type==None)        
+                clauses.append(Edge.relation_type==None)
 
         return clauses
 
@@ -437,7 +437,7 @@ class Node(Base):
 # ===============
 # = Descriptors =
 # ===============
-        
+
 class Children(object):
 
     def __init__(self, cls=None, group_name=None, relation_type=None):
@@ -515,6 +515,4 @@ Node.child_ids = ChildIDs(Node)
 
 Node.parents = Parents(Node)
 Node.parent_ids = ParentIDs(Node)
-
-
 
