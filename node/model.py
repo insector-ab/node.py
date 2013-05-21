@@ -5,7 +5,6 @@ from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, Uni
 from sqlalchemy.orm import relationship, EXT_CONTINUE
 from sqlalchemy.orm.interfaces import MapperExtension
 from sqlalchemy.orm.session import object_session
-from sqlalchemy.ext.mutable import Mutable
 
 from node import Base
 
@@ -38,33 +37,6 @@ class Callback(MapperExtension):
         f = getattr(instance, "_pre_update", None)
         if f: f()
         return EXT_CONTINUE
-
-
-class MutableDict(Mutable, dict):
-    """data = Column(MutableDict.as_mutable(PickleType))"""
-
-    @classmethod
-    def coerce(cls, key, value):
-        if not isinstance(value, MutableDict):
-            if isinstance(value, dict):
-                return MutableDict(value)
-            return Mutable.coerce(key, value)
-        else:
-            return value
-
-    def __delitem(self, key):
-        dict.__delitem__(self, key)
-        self.changed()
-
-    def __setitem__(self, key, value):
-        dict.__setitem__(self, key, value)
-        self.changed()
-
-    def __getstate__(self):
-        return dict(self)
-
-    def __setstate__(self, state):
-        self.update(self)
 
 
 class Edge(Base):
@@ -385,10 +357,40 @@ class Node(Base):
     def get_polymorphic_identity(cls):
         return cls.__mapper_args__['polymorphic_identity']
 
-
 # ===============
 # = Descriptors =
 # ===============
+
+class DictProperty(object):
+
+    def __init__(self, key, dict_name=None, default_value=None):
+        super(DictProperty, self).__init__()
+        self.dict_name = dict_name
+        self.key = key
+        self.default_value = default_value
+
+    def __get__(self, instance, cls):
+        item = self._get_dict(instance)
+        return item.get(self.key, self.default_value)
+
+    def __set__(self, instance, value):
+        item = self._get_dict(instance)
+        item[self.key] = value
+
+    def __delete__(self, instance):
+        item = self._get_dict(instance)
+        del item[self.key]        
+
+    def _get_dict(self, instance):
+        if not hasattr(instance, self.dict_name):
+            raise Exception(u'Dict "{0}" not found on {1}'.format(self.dict_name, instance))
+
+        item = getattr(instance, self.dict_name)
+
+        if not isinstance(item, dict):
+            raise Exception(u'Attribute "{0}" not a dict'.format(self.dict_name))
+
+        return item
 
 class Children(object):
 

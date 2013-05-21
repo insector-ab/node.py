@@ -27,7 +27,7 @@ Base = declarative_base()
 # from sqlalchemy import create_engine
 
 # # configure Session class with desired options
-# Session = sessionmaker()
+# Session = sessionmaker(autoflush=False)
 
 # # later, we create the engine
 # engine = create_engine('postgresql://...')
