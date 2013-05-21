@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 import datetime
-import uuid
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, desc, PickleType, or_
+from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, PickleType, or_
 from sqlalchemy.orm import relationship, EXT_CONTINUE
-from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.interfaces import MapperExtension
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.sql.expression import _UnaryExpression
 from sqlalchemy.orm.session import object_session
 
 from node import Base
@@ -43,86 +39,17 @@ class Callback(MapperExtension):
         return EXT_CONTINUE
 
 
-class Database(object):
-
-    def __init__(self, session):
-        self.session = session
-
-    def get(self, cls, id):
-        try:
-            result = self.session.query(cls).get(id)
-        except NoResultFound:
-            result = None
-
-        return result
-
-    def query(self, cls, *args, **kws):
-        query = self.session.query(cls)
-
-        if len(args) > 0:
-            query = query.filter(*args)
-
-        # exclude subclasses
-        if kws.get('exclude_subclasses', False):
-            query = query.filter(Node.discriminator==cls.get_polymorphic_identity())
-
-        # Sort result
-        order_by = kws.get('order_by', None)
-        order_desc = kws.get('desc', False)
-        if isinstance(order_by, _UnaryExpression) or order_by:
-            if isinstance(order_by, (str, unicode)):
-                order_by = getattr(cls, order_by, None)
-
-            if isinstance(order_by, (InstrumentedAttribute, _UnaryExpression)):
-                if order_desc:
-                    query = query.order_by(desc(order_by))
-                else:
-                    query = query.order_by(order_by)
-
-        # Limit result
-        if kws.has_key('limit'):
-            query = query.limit(kws.get('limit'))
-
-        # Offset result
-        if kws.has_key('offset'):
-            query = query.offset(kws.get('offset'))
-
-        return query
-
-    def first(self, cls, *args, **kws):
-        query = self.query(cls, *args, **kws)
-        return query.first()
-
-    def one(self, cls, *args, **kws):
-        query = self.query(cls, *args, **kws)
-
-        if not query.count() == 1:
-            raise Exception("Query.one() failed to collect single row, found:{0}".format(query.count()))
-
-        return query.one()
-
-    def all(self, cls, *args, **kws):
-        query = self.query(cls, *args, **kws)
-        return query.all()
-
-
-    def count(self, cls, *args, **kws):
-        query = self.query(cls, *args, **kws)
-        return query.count()
-
-
-
 class Edge(Base):
     CHILD = u"child"
     PARENT = u"parent"
 
     __tablename__ = "edges"
     id = Column(Integer, primary_key=True)
-    uuid = Column(Unicode(255), unique=True)
     edge_key = Column(Unicode(100), unique=True)
     name = Column(Unicode(255))
     group_name = Column(Unicode(100))
     relation_type = Column(Unicode(100))
+    index = Column(Integer)
     meta_data = Column(PickleType()) # Possible we need to add Mutable Dict
 
     left_id = Column(Integer, ForeignKey('nodes.id'))
@@ -138,7 +65,6 @@ class Edge(Base):
 
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
-        self.uuid = unicode(uuid.uuid1().get_hex())
 
 
     def _set_metadata_value(self, key, value):
@@ -285,7 +211,6 @@ class Edge(Base):
 class Node(Base):
     __tablename__ = "nodes"
     id = Column(Integer, primary_key=True)
-    uuid = Column(Unicode(255), unique=True)
     discriminator = Column(Unicode(50))
     __mapper_args__ = {'polymorphic_on': discriminator, 'extension':Callback()}
     name = Column(Unicode(255))
@@ -302,7 +227,6 @@ class Node(Base):
 
     def __init__(self, *args, **kw):
         super(Node, self).__init__(*args, **kw)
-        self.uuid = unicode(kw.get('uuid', uuid.uuid1().get_hex()))
 
     def __unicode__(self):
         return self.name or ""
