@@ -66,6 +66,9 @@ class Edge(Base):
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
 
+    @property
+    def session(self):
+        return object_session(self)
 
     def _set_metadata_value(self, key, value):
         if not self.meta_data:
@@ -134,7 +137,7 @@ class Edge(Base):
             clauses = clauses + (Node.discriminator==discriminator, )
 
         # iterate existing edges
-        s = object_session(node)
+        s = node.session
         existing_edges = s.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
         for edge in existing_edges:
             related_node = edge.child if relation==Edge.CHILD else edge.parent
@@ -181,7 +184,7 @@ class Edge(Base):
             clauses = clauses + (Node.discriminator==discriminator, )
 
         # iterate existing edges
-        s = object_session(node)
+        s = node.session
         existing_edges = s.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
         for edge in existing_edges:
             related_node_id = edge.right_id if relation==Edge.CHILD else edge.left_id
@@ -203,8 +206,7 @@ class Edge(Base):
 
     @staticmethod
     def remove_all_edges(node):
-        s = object_session(node)
-        s.query(Edge).filter(or_(Edge.left_id==node.id, Edge.right_id==node.id)).delete()
+        node.session.query(Edge).filter(or_(Edge.left_id==node.id, Edge.right_id==node.id)).delete()
 
 
 
@@ -212,7 +214,7 @@ class Node(Base):
     __tablename__ = "nodes"
     id = Column(Integer, primary_key=True)
     discriminator = Column(Unicode(50))
-    __mapper_args__ = {'polymorphic_on': discriminator, 'extension':Callback()}
+    __mapper_args__ = {'polymorphic_on': discriminator, 'extension':Callback(), 'polymorphic_identity': u'node'}
     name = Column(Unicode(255))
     description = Column(UnicodeText)
     node_key = Column(Unicode(100), unique=True)
@@ -230,6 +232,22 @@ class Node(Base):
 
     def __unicode__(self):
         return self.name or ""
+
+    @property
+    def classname(self):
+        return self.__class__.__name__
+
+    @property
+    def singular(self):
+        return self.__class__.get_singular()
+
+    @property
+    def plural(self):
+        return self.__class__.get_plural()
+    
+    @property
+    def session(self):
+        return object_session(self)
 
     def _get_discriminators(self, cls):
         if isinstance(cls, list):
@@ -272,7 +290,7 @@ class Node(Base):
         elif isinstance(cls,list):
             exclude_subclasses = True
         clauses = self._get_related_node_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
-        query = object_session(self).query(Node if isinstance(cls,list) else cls)
+        query = self.session.query(Node if isinstance(cls,list) else cls)
         node_edge = (Edge, Node.id==Edge.right_id) if relation==Edge.CHILD else (Edge, Node.id==Edge.left_id)
         query = query.join(node_edge).filter(and_(*clauses))
         if order_by:
@@ -288,7 +306,7 @@ class Node(Base):
         elif isinstance(cls,list):
             exclude_subclasses = True
         clauses = self._get_related_node_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
-        query = object_session(self).query(Node.id if isinstance(cls,list) else cls.id)
+        query = self.session.query(Node.id if isinstance(cls,list) else cls.id)
         node_edge = (Edge, Node.id==Edge.right_id) if relation==Edge.CHILD else (Edge, Node.id==Edge.left_id)
         query = query.join(node_edge).filter(and_(*clauses))
         if order_by:
@@ -342,7 +360,7 @@ class Node(Base):
             exclude_subclasses = True
         clauses = self._get_related_node_query_clauses(relation, group, relation_type, cls if exclude_subclasses else None)
         # print clauses
-        query = object_session(self).query(Edge)
+        query = self.session.query(Edge)
         cls = Node if isinstance(cls,list) else cls
         node_edge = (cls, cls.id==Edge.right_id) if relation==Edge.CHILD else (cls, cls.id==Edge.left_id)
         query = query.join(node_edge).filter(and_(*clauses))
@@ -356,6 +374,14 @@ class Node(Base):
     @classmethod
     def get_polymorphic_identity(cls):
         return cls.__mapper_args__['polymorphic_identity']
+
+    @classmethod
+    def get_plural(cls):
+        return cls.__tablename__
+
+    @classmethod
+    def get_singular(cls):
+        return cls.get_polymorphic_identity()
 
 # ===============
 # = Descriptors =
