@@ -244,7 +244,7 @@ class Node(Base):
     @property
     def plural(self):
         return self.__class__.get_plural()
-    
+
     @property
     def session(self):
         return object_session(self)
@@ -405,7 +405,7 @@ class DictProperty(object):
 
     def __delete__(self, instance):
         item = self._get_dict(instance)
-        del item[self.key]        
+        del item[self.key]
 
     def _get_dict(self, instance):
         if not hasattr(instance, self.dict_name):
