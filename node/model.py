@@ -254,7 +254,7 @@ class Node(Base):
         Edge.update_parent_edges( self, parents, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
     def _get_parent_ids(self, cls=None, group=None, relation_type=None, exclude_subclasses=False, order_by=None):
-        return self._get_related_node_id_query( Edge.PARENT, cls, group, exclude_subclasses, order_by ).all
+        return self._get_related_node_id_query( Edge.PARENT, cls, group, exclude_subclasses, order_by ).all()
     def _set_parent_ids(self, parent_ids=[], group=None, relation_type=None, metadata=[], discriminator=None):
         Edge.update_parent_edge_by_id( self, parent_ids, group=group, relation_type=relation_type, metadata=metadata, discriminator=discriminator )
 
