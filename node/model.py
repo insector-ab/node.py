@@ -157,9 +157,9 @@ class Edge(Base):
         for i, related_node in enumerate(related_nodes):
             md = metadata[i] if metadata and i < len(metadata) else None
             if relation == Edge.CHILD:
-                new_edge = Edge.create_edge( node, related_node, group, md )
+                new_edge = Edge.create_edge( node, related_node, group=group, metadata=md )
             else:
-                new_edge = Edge.create_edge( related_node, node, group, md )
+                new_edge = Edge.create_edge( related_node, node, group=group, metadata=md )
             s.add( new_edge )
 
     @staticmethod
@@ -328,14 +328,14 @@ class Children(object):
         self.relation_type = kws.get('relation_type', None)
 
     def __get__(self, instance, cls):
-        return instance._get_children( self.discriminators, self.group_name, self.relation_type )
+        return instance._get_children( discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
 
     def __set__(self, instance, value):
         if self.discriminators:
             for child in value:
                 if not child.discriminator in self.discriminators:
                     raise ValueError("One of the children passed as argument is of wrong type")
-        instance._set_children( value, self.discriminators, self.group_name, self.relation_type )
+        instance._set_children( value, discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
 
 class Parents(object):
 
@@ -348,14 +348,14 @@ class Parents(object):
         self.relation_type = kws.get('relation_type', None)
 
     def __get__(self, instance, cls):
-        return instance._get_parents( self.discriminators, self.group_name, self.relation_type )
+        return instance._get_parents( discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
 
     def __set__(self, instance, value):
         if self.discriminators:
             for parent in value:
                 if not parent.discriminator in self.discriminators:
                     raise ValueError("One of the parents passed as argument is of wrong type")
-        instance._set_parents( value, self.discriminators, self.group_name, self.relation_type )
+        instance._set_parents( value, discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
 
 Node.children = Children(Node)
 Node.parents = Parents(Node)
