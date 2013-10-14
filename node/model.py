@@ -127,7 +127,7 @@ class Edge(Base):
         Edge.update_related_edges( child, parents, Edge.PARENT, **kws )
 
     @staticmethod
-    def update_related_edges(node, related_nodes, discriminators=None, relation=CHILD, group=None, relation_type=None, metadata=None):
+    def update_related_edges(node, related_nodes, relation=CHILD, discriminators=None, group=None, relation_type=None, metadata=None):
         """Update node's related parent or child edges. related_nodes=[list of related nodes], discriminators=[list of discriminators], group="name of edge group", relation_type="type of relation", metadata=[list of dicts] """
         assert isinstance(related_nodes, list)
         clauses = (Edge.parent==node, ) if relation == Edge.CHILD else (Edge.child==node, )
@@ -351,7 +351,7 @@ class Parents(object):
         return instance._get_parents( self.discriminators, self.group_name, self.relation_type )
 
     def __set__(self, instance, value):
-        if self.cls:
+        if self.discriminators:
             for parent in value:
                 if not parent.discriminator in self.discriminators:
                     raise ValueError("One of the parents passed as argument is of wrong type")
