@@ -4,11 +4,11 @@ class ConstantMeta(type):
     """Collects unicode constants set on class"""
     def __init__(cls, class_name, bases, class_dict):
         cls.values = []
+        cls.keys = {}
         for k,v in class_dict.iteritems():
-            if type(v) == unicode:
+            if type(v) == unicode or type(v) == int:
                 cls.values.append(v)
-            elif type(v) == int:
-                cls.values.append(v)
+                cls.keys[v] = k
 
 # class UnicodeConstantMeta(type):
 #     """Collects unicode constants set on class"""
