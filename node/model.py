@@ -141,7 +141,7 @@ class Edge(Base):
 
         # iterate existing edges
         s = node.session
-        existing_edges = s.query(Edge).join(Edge.parent if relation == Edge.CHILD else Edge.child).filter(and_(*clauses)).all()
+        existing_edges = s.query(Edge).join(Edge.child if relation == Edge.CHILD else Edge.parent).filter(and_(*clauses)).all()
         for edge in existing_edges:
             related_node = edge.child if relation==Edge.CHILD else edge.parent
             if related_node in related_nodes:
