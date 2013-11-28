@@ -322,8 +322,8 @@ class Children(object):
     def __init__(self, *args, **kws):
         super(Children, self).__init__()
         # Node, Article, group_name=None, relation_type=None
-        include_subclasses = kws.get('include_subclasses', True)
-        self.discriminators = get_discriminators(*args, include_subclasses=include_subclasses)
+        self.include_subclasses = kws.get('include_subclasses', True)
+        self.classes = args
         self.group_name = kws.get('group_name', None)
         self.relation_type = kws.get('relation_type', None)
 
@@ -331,19 +331,24 @@ class Children(object):
         return instance._get_children( discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
 
     def __set__(self, instance, value):
-        if self.discriminators:
+        discriminators = self.discriminators
+        if discriminators:
             for child in value:
-                if not child.discriminator in self.discriminators:
+                if not child.discriminator in discriminators:
                     raise ValueError("One of the children passed as argument is of wrong type")
-        instance._set_children( value, discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
+        instance._set_children( value, discriminators=discriminators, group=self.group_name, relation_type=self.relation_type )
+
+    @property
+    def discriminators(self):
+        return get_discriminators(*self.classes, include_subclasses=self.include_subclasses)
 
 class Parents(object):
 
     def __init__(self, *args, **kws):
         super(Parents, self).__init__()
         # Node, Article, group_name=None, relation_type=None
-        include_subclasses = kws.get('include_subclasses', True)
-        self.discriminators = get_discriminators(*args, include_subclasses=include_subclasses)
+        self.include_subclasses = kws.get('include_subclasses', True)
+        self.classes = args
         self.group_name = kws.get('group_name', None)
         self.relation_type = kws.get('relation_type', None)
 
@@ -351,11 +356,17 @@ class Parents(object):
         return instance._get_parents( discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
 
     def __set__(self, instance, value):
-        if self.discriminators:
+        discriminators = self.discriminators
+        if discriminators:
             for parent in value:
-                if not parent.discriminator in self.discriminators:
+                if not parent.discriminator in discriminators:
                     raise ValueError("One of the parents passed as argument is of wrong type")
-        instance._set_parents( value, discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type )
+        instance._set_parents( value, discriminators=discriminators, group=self.group_name, relation_type=self.relation_type )
+
+    @property
+    def discriminators(self):
+        return get_discriminators(*self.classes, include_subclasses=self.include_subclasses)
+
 
 Node.children = Children(Node)
 Node.parents = Parents(Node)
