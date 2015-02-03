@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import bcrypt
+import sys
 import datetime
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, PickleType, or_
+from sqlalchemy import Column, Integer, Unicode, String, ForeignKey, DateTime, and_, PickleType, or_
 from sqlalchemy.orm import relationship, EXT_CONTINUE
 from sqlalchemy.orm.interfaces import MapperExtension
 from sqlalchemy.orm.session import object_session
@@ -9,6 +11,7 @@ from sqlalchemy.ext.mutable import MutableDict
 
 from node import Base
 from node.util import get_discriminators
+
 
 class Callback(MapperExtension):
     """ Extention to add pre-commit hooks.
@@ -22,22 +25,26 @@ class Callback(MapperExtension):
     """
     def before_insert(self, mapper, connection, instance):
         f = getattr(instance, "_pre_insert", None)
-        if f: f()
+        if f:
+            f()
         return EXT_CONTINUE
 
     def after_insert(self, mapper, connection, instance):
         f = getattr(instance, "_post_insert", None)
-        if f: f()
+        if f:
+            f()
         return EXT_CONTINUE
 
     def before_delete(self, mapper, connection, instance):
         f = getattr(instance, "_pre_delete", None)
-        if f: f()
+        if f:
+            f()
         return EXT_CONTINUE
 
     def before_update(self, mapper, connection, instance):
         f = getattr(instance, "_pre_update", None)
-        if f: f()
+        if f:
+            f()
         return EXT_CONTINUE
 
 
@@ -76,7 +83,7 @@ class Edge(Base):
         if not self.meta_data:
             self.meta_data = {}
         # Remove keys with value None
-        if value == None:
+        if value is None:
             try:
                 del(self.meta_data[key])
             except Exception:
@@ -172,24 +179,25 @@ class Node(Base):
     __tablename__ = "nodes"
     id = Column(Integer, primary_key=True)
     discriminator = Column(Unicode(50))
-    __mapper_args__ = {'polymorphic_on': discriminator, 'extension':Callback(), 'polymorphic_identity': u'node'}
-    name = Column(Unicode(255))
-    description = Column(UnicodeText)
+    __mapper_args__ = {
+        'polymorphic_on': discriminator,
+        'extension': Callback(),
+        'polymorphic_identity': u'node'
+    }
+    # name = Column(Unicode(255))
+    # description = Column(UnicodeText)
     node_key = Column(Unicode(100), unique=True)
-
     # Dates
     created_at = Column(DateTime(), default=datetime.datetime.now)
     modified_at = Column(DateTime(), default=datetime.datetime.now)
-
     # Users
-    created_by_id = Column(Integer)
-    modified_by_id = Column(Integer)
+    created_by_id = Column(Integer, ForeignKey('users.id'))
+    created_by = relationship(  "User",
+                                primaryjoin="Node.created_by_id==User.id")
 
-    def __init__(self, *args, **kw):
-        super(Node, self).__init__(*args, **kw)
-
-    def __unicode__(self):
-        return self.name or ""
+    modified_by_id = Column(Integer, ForeignKey('users.id'))
+    modified_by = relationship( "User",
+                                primaryjoin="Node.modified_by_id==User.id")
 
     @property
     def classname(self):
@@ -281,6 +289,123 @@ class Node(Base):
     @classmethod
     def get_singular(cls):
         return cls.get_polymorphic_identity()
+
+
+
+
+InputMismatchError = TypeError("Inputs must be both unicode or both bytes")
+
+
+class User(Base):
+    __tablename__ = "users"
+    __mapper_args__ = {'polymorphic_identity': u'user'}
+    id = Column(Integer, primary_key=True)
+
+    _username = Column(Unicode(100), unique=True)
+    _last_login = Column(DateTime())
+    _digest = Column(String(100))
+    
+    def __init__(self, username=None, password=None):
+        if username:
+            self._username = username
+        if password:
+            self.set_password( password )
+
+    @property
+    def descriminator(self):
+        return u'user'
+
+    @property
+    def username(self):
+        return self._username
+    @username.setter
+    def username(self, value):
+        self._username = value
+
+    @property
+    def last_login(self):
+        return self._last_login
+    @last_login.setter
+    def last_login(self, value):
+        self._last_login = value
+
+
+    @property
+    def classname(self):
+        return self.__class__.__name__
+
+    @property
+    def singular(self):
+        return self.__class__.get_singular()
+
+    @property
+    def plural(self):
+        return self.__class__.get_plural()
+
+    @property
+    def session(self):
+        return object_session(self)
+
+
+    def set_password(self, password):
+        self._digest = self._generate_digest( password )
+
+    def check_password(self, password):
+        # unicode?
+        if isinstance(password, unicode):
+            password = password.encode('utf-8')
+        # No digest set, return false
+        if not self._digest:
+            return self._constant_time_compare('returns', 'false')
+        # check stored digest
+        return self._constant_time_compare( bcrypt.hashpw(password, self._digest), self._digest)
+
+    def _generate_digest(self, password):
+        # unicode?
+        if isinstance(password, unicode):
+            password = password.encode('utf-8')
+        # generate        
+        return bcrypt.hashpw(password, bcrypt.gensalt())
+
+    # Helper method
+    # Always takes the same time comparing a & b
+    # regardless of similarity. Prevents learning
+    # when brute forcing password.
+    def _constant_time_compare(self, a, b):
+        if isinstance(a, unicode):
+            if not isinstance(b, unicode):
+                raise InputMismatchError
+            is_py3_bytes = False
+        elif isinstance(a, bytes):
+            if not isinstance(b, bytes):
+                raise InputMismatchError
+            is_py3_bytes = sys.version_info >= (3, 0)
+        else:
+            raise InputMismatchError
+
+        result = 0
+        if is_py3_bytes:
+            for x, y in zip(a, b):
+                result |= x ^ y
+        else:
+            for x, y in zip(a, b):
+                result |= ord(x) ^ ord(y)
+        return result == 0
+
+
+    @classmethod
+    def get_polymorphic_identity(cls):
+        return cls.__mapper_args__['polymorphic_identity']
+
+    @classmethod
+    def get_plural(cls):
+        return cls.__tablename__
+
+    @classmethod
+    def get_singular(cls):
+        return cls.get_polymorphic_identity()
+
+
 
 # ===============
 # = Descriptors =
