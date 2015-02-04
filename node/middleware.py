@@ -4,10 +4,11 @@ from sqlalchemy import create_engine
 
 class NodeMiddleware(object):
 
-    def __init__(self, app, **kw):
+    def __init__(self, app, environ_key='node.session', **kws):
         self.app = app
+        self.environ_key = environ_key
         self.sessionmaker = sessionmaker(autoflush=False)
-        conf = kw.copy()
+        conf = kws.copy()
         url = conf.get('url')
         del conf['url']
 
@@ -16,8 +17,12 @@ class NodeMiddleware(object):
 
 
     def __call__(self, environ, start_response):
-        environ['node.session'] = self.sessionmaker()
+        # get session
+        environ[self.environ_key] = self.sessionmaker()
+        # wsgi call
         response = self.app(environ, start_response)
-        environ['node.session'].close()
+        # close session
+        environ[self.environ_key].close()
+        # return response
         return response
 
