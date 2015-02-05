@@ -38,7 +38,7 @@ class Edge(Base):
 
     def __getattr__(self, name):
         name = '_{0}'.format(name)
-        if hasattr(self, name):
+        if name in self.__dict__:
             return getattr(self, name)
         else:
             raise AttributeError
@@ -170,7 +170,7 @@ class AbstractNode(Base):
 
     def __getattr__(self, name):
         name = '_{0}'.format(name)
-        if hasattr(self, name):
+        if name in self.__dict__:
             return getattr(self, name)
         else:
             raise AttributeError
