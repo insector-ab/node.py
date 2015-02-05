@@ -54,7 +54,7 @@ InputMismatchError = TypeError("Inputs must be both unicode or both bytes")
 # Always takes the same time comparing a & b
 # regardless of similarity. Prevents learning
 # when brute forcing password.
-def constant_time_compare(self, a, b):
+def constant_time_compare(a, b):
     if isinstance(a, unicode):
         if not isinstance(b, unicode):
             raise InputMismatchError

@@ -9,23 +9,6 @@ from sqlalchemy.ext.mutable import MutableDict
 from node import Base
 from node.util import get_discriminators, JSONEncodedObj
 
-# class Foo(object):
-#     def __getattr__(self, name):
-#         if some_predicate(name):
-#             # ...
-#         else:
-#             # Default behaviour
-#             raise AttributeError
-# However, unlike __getattr__, __getattribute__ will be called first (only works for new style classes i.e. those that inherit from object). In this case, you can preserve default behaviour like so:
-# class Foo(object):
-#     def __getattribute__(self, name):
-#         if some_predicate(name):
-#             # ...
-#         else:
-#             # Default behaviour
-#             return object.__getattribute__(self, name)
-
-
 class Edge(Base):
     CHILD = u"child"
     PARENT = u"parent"
@@ -53,26 +36,18 @@ class Edge(Base):
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
 
+    def __getattr__(self, name):
+        name = '_{0}'.format(name)
+        if hasattr(self, name):
+            return getattr(self, name)
+        else:
+            raise AttributeError
 
-    # def __getattribute__(self, name):
-    #     attr = '_{0}'.format(name)
-    #     if hasattr(self, attr):
-    #         return super(Edge, self).__getattribute__(attr)
-    #     return super(Edge, self).__getattribute__(name)
-
-    # def __getattr__(self, name):
-    #     # look for _attribute
-    #     attr = '_{0}'.format(name)
-    #     if hasattr(self, attr):
-    #         object.__getattr__(self, name)
-    #         # return super(Edge, self).__getattr__(attr)
-
-    # def __setattr__(self, name, value):
-    #     # look for _attribute
-    #     attr = '_{0}'.format(name)
-    #     if hasattr(self, attr):
-    #         object.__setattr__(self, name, value)
-    #         # super(Edge, self).__setattr__(attr, value)
+    def __setattr__(self, name, value):
+        if hasattr(self, name) or name[:1] == '_':
+            object.__setattr__(self, name, value)
+        else:
+            object.__setattr__(self, '_{0}'.format(name), value)
 
     @property
     def session(self):
@@ -193,19 +168,12 @@ class AbstractNode(Base):
     def __unicode__(self):
         return self.name or ""
 
-
-    # def __getattribute__(self, name):
-    #     attr = '_{0}'.format(name)
-    #     if hasattr(self, attr):
-    #         return super(AbstractNode, self).__getattribute__(attr)
-    #     return super(AbstractNode, self).__getattribute__(name)
-
     def __getattr__(self, name):
-        if hasattr(self, name) :
-            object.__getattr__(self, name)
+        name = '_{0}'.format(name)
+        if hasattr(self, name):
+            return getattr(self, name)
         else:
-            object.__getattr__(self, '_{0}'.format(name))
-
+            raise AttributeError
 
     def __setattr__(self, name, value):
         if hasattr(self, name) or name[:1] == '_':
