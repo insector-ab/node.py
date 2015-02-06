@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, UnicodeText, or_
+from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.ext.mutable import MutableDict
@@ -36,18 +36,25 @@ class Edge(Base):
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
 
-    def __getattr__(self, name):
-        name = '_{0}'.format(name)
-        if name in self.__dict__:
-            return getattr(self, name)
+    # def __getattribute__(self, attr):
+    #     # _attr = '_{0}'.format(attr)
+    #     # if not hasattr(self, attr) and hasattr(self, _attr):
+    #     #     return super(AbstractNode, self).__getattribute__(_attr)
+
+    #     return super(AbstractNode, self).__getattribute__(attr)
+
+    def __getattr__(self, attr):
+        attr = '_{0}'.format(attr)
+        if attr in self.__class__.__dict__:
+            return getattr(self, attr)
         else:
             raise AttributeError
 
-    def __setattr__(self, name, value):
-        if hasattr(self, name) or name[:1] == '_':
-            object.__setattr__(self, name, value)
+    def __setattr__(self, attr, value):
+        if attr in self.__class__.__dict__ or attr == '_sa_instance_state':
+            object.__setattr__(self, attr, value)
         else:
-            object.__setattr__(self, '_{0}'.format(name), value)
+            object.__setattr__(self, '_{0}'.format(attr), value)
 
     @property
     def session(self):
@@ -80,7 +87,7 @@ class Edge(Base):
             raise Exception('Cirular reference')
         # recursive find parent as child or grandchild
         if parent and child:
-            for grandchild in child.children:
+            for grandchild in child._get_children():
                 Edge.check_circular_reference(parent, grandchild)
 
     @staticmethod
@@ -114,13 +121,17 @@ class Edge(Base):
         metadata=[list of dicts] """
         assert isinstance(related_nodes, list)
         clauses = (Edge.parent == node, ) if relation == Edge.CHILD else (Edge.child == node, )
-
         if group is not False:
             clauses = clauses + (Edge._group_name == group, )
         if relation_type is not False:
             clauses = clauses + (Edge._relation_type == relation_type, )
         if discriminators:
-            clauses = clauses + (AbstractNode.discriminator.in_(discriminators), )
+            # temp fix ?
+            subclasses = AbstractNode.__subclasses__()
+            if len(subclasses) > 1:
+                raise Exception('More than one subclass found for AbstractClass')
+            nodeCls = subclasses[0]
+            clauses = clauses + (nodeCls.discriminator.in_(discriminators), )
 
         # iterate existing edges
         s = node.session
@@ -136,6 +147,7 @@ class Edge(Base):
                 related_nodes = related_nodes[:i] + related_nodes[i + 1:]  # remove same index
             else:
                 s.delete(edge)
+
         # iterate non existing nodes and create new edges
         for i, related_node in enumerate(related_nodes):
             md = metadata[i] if metadata and i < len(metadata) else None
@@ -154,8 +166,6 @@ class AbstractNode(Base):
     __abstract__ = True
     id = Column(Integer, primary_key=True)
     discriminator = Column(Unicode(50))
-    _name = Column('name', Unicode(255))
-    _description = Column('description', UnicodeText)
     _node_key = Column('node_key', Unicode(100), unique=True)
 
     # Dates
@@ -166,20 +176,27 @@ class AbstractNode(Base):
         super(AbstractNode, self).__init__(*args, **kw)
 
     def __unicode__(self):
-        return self.name or ""
+        return ".id {0}".format(self.id)
 
-    def __getattr__(self, name):
-        name = '_{0}'.format(name)
-        if name in self.__dict__:
-            return getattr(self, name)
+    # def __getattribute__(self, attr):
+    #     _attr = '_{0}'.format(attr)
+    #     if not hasattr(self, attr) and hasattr(self, _attr):
+    #     #     return super(AbstractNode, self).__getattribute__(_attr)
+
+    #     return super(AbstractNode, self).__getattribute__(attr)
+
+    def __getattr__(self, attr):
+        attr = '_{0}'.format(attr)
+        if attr in self.__class__.__dict__:
+            return getattr(self, attr)
         else:
             raise AttributeError
 
-    def __setattr__(self, name, value):
-        if hasattr(self, name) or name[:1] == '_':
-            object.__setattr__(self, name, value)
+    def __setattr__(self, attr, value):
+        if attr in self.__class__.__dict__ or attr == '_sa_instance_state':
+            object.__setattr__(self, attr, value)
         else:
-            object.__setattr__(self, '_{0}'.format(name), value)
+            object.__setattr__(self, '_{0}'.format(attr), value)
 
     @property
     def classname(self):
@@ -360,5 +377,5 @@ class Parents(object):
         return get_discriminators(*self.classes, include_subclasses=self.include_subclasses)
 
 
-AbstractNode.children = Children(AbstractNode)
-AbstractNode.parents = Parents(AbstractNode)
+# AbstractNode.children = Children(AbstractNode)
+# AbstractNode.parents = Parents(AbstractNode)
