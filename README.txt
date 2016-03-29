@@ -15,7 +15,7 @@ Test package:
 config.yaml
 
 sqlalchemy:
-    url: mysql://root@localhost:3306/DB_NAME
+    url: mysql://root@localhost:3306/
     db_name: DB_NAME
     engine: 
         pool_recycle: 3600

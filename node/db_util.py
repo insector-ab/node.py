@@ -10,19 +10,21 @@ class DBUtil(object):
     def __init__(self, conf, *args, **kw):
         self.config = conf
         self.sessionmaker = sessionmaker(autoflush=False)
-        self.engine = create_engine(self.config.get('url'), **self.config.get('engine'))
+        url = u'{0}{1}'.format(self.config.get('url'), self.config.get('db_name'))
+        self.engine = create_engine(url, **self.config.get('engine'))
         self.sessionmaker.configure(bind=self.engine)
 
     def recreate_db(self):
-        conn = self.engine.connect()
+        # connect to DB
+        conn = create_engine(self.config.get('url')).connect()
         # conn.execute("commit")
         try:
-            conn.execute("DROP DATABASE {0}".format(self.config.db_name))
+            conn.execute("DROP DATABASE {0}".format(self.config.get('db_name')))
         except Exception:
             pass
-        conn.execute("CREATE DATABASE {0}".format(self.config.db_name))
+        conn.execute("CREATE DATABASE {0}".format(self.config.get('db_name')))
         conn.close()
-        print "Recreated database: {0}".format(self.config.db_name)
+        print "Recreated database: {0}".format(self.config.get('db_name'))
 
     def recreate_tables(self):
         sess = self.new_session()
