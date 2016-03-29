@@ -20,7 +20,9 @@ class DBUtil(object):
             conn.execute("DROP DATABASE {0}".format(self.config.get('db_name')))
         except Exception:
             pass
-        conn.execute("CREATE DATABASE {0}".format(self.config.get('db_name')))
+        default_character = "DEFAULT CHARACTER SET utf8"
+        default_collate = "DEFAULT COLLATE utf8_general_ci"
+        conn.execute("CREATE DATABASE {0} {1} {2}".format(self.config.get('db_name'), default_character, default_collate))
         conn.close()
         print "Recreated database: {0}".format(self.config.get('db_name'))
 
