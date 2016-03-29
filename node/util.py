@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
-import json
+import simplejson
 from sqlalchemy import UnicodeText
 from sqlalchemy.orm import EXT_CONTINUE
 from sqlalchemy.orm.interfaces import MapperExtension
@@ -119,10 +119,10 @@ class JSONEncodedObj(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value is not None:
-            value = json.dumps(value, use_decimal=True)
+            value = simplejson.dumps(value, use_decimal=True)
         return value
 
     def process_result_value(self, value, dialect):
         if value is not None:
-            value = json.loads(value, use_decimal=True)
+            value = simplejson.loads(value, use_decimal=True)
         return value

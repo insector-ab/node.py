@@ -4,9 +4,21 @@ Test package:
 
 .: python setup.py develop
 .: pip install ipython
-.: mysql -u root
-    .: create database nodes
 .: ipython
-    .: import node.init
-    .: from node.db_util import *
-    .: create_tables()
+    from node.db_util import DBUtil
+    dbutil = DBUtil(config) # config object
+    dbutil.recreate_db()
+    dbutil.recreate_tables()
+
+-----------------------
+
+config.yaml
+
+sqlalchemy:
+    url: mysql://root@localhost:3306/DB_NAME
+    db_name: DB_NAME
+    engine: 
+        pool_recycle: 3600
+        echo: False
+
+-----------------------
