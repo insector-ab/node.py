@@ -3,7 +3,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
 from node import Base
-# from node.model import *
 
 class DBUtil(object):
 
@@ -17,7 +16,6 @@ class DBUtil(object):
     def recreate_db(self):
         # connect to DB
         conn = create_engine(self.config.get('url')).connect()
-        # conn.execute("commit")
         try:
             conn.execute("DROP DATABASE {0}".format(self.config.get('db_name')))
         except Exception:
