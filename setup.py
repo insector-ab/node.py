@@ -1,4 +1,3 @@
-import os
 from setuptools import setup, find_packages
 
 # Box requirments:
@@ -12,8 +11,10 @@ from setuptools import setup, find_packages
 # aptitude install python-mysqldb
 
 requires = [
-    'SQLAlchemy>=0.7.9'
-    ]
+    'SQLAlchemy>=0.7.9',
+    'MySQL-python>=1.2.5',
+    'simplejson>=3.8.2'
+]
 
 setup(name='node',
       version='1.0',
