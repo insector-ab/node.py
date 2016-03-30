@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import datetime
+from dateutil.tz import tzutc
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, or_
+from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, or_, TypeDecorator
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.ext.mutable import MutableDict
@@ -9,6 +10,23 @@ from sqlalchemy.ext.mutable import MutableDict
 from node import Base
 from node.util import get_discriminators, JSONEncodedObj
 
+class UTCDateTime(TypeDecorator):
+
+    impl = DateTime
+
+    def process_bind_param(self, value, engine):
+        if value is not None:
+            return value.astimezone(tzutc())
+
+    def process_result_value(self, value, engine):
+        if value is not None:
+            return datetime.datetime(value.year, value.month, value.day,
+                                     value.hour, value.minute, value.second,
+                                     value.microsecond, tzinfo=tzutc())
+
+tz = tzutc()
+def datetime_utc_now():
+    return datetime.datetime.now(tz)
 
 class Edge(Base):
     CHILD = u"child"
@@ -22,6 +40,10 @@ class Edge(Base):
     _relation_type = Column('relation_type', Unicode(100))
     _index = Column('index', Integer)
     _meta_data = Column('meta_data', MutableDict.as_mutable(JSONEncodedObj))
+
+    # Dates
+    _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
+    _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
 
     left_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship("Node",
@@ -170,8 +192,8 @@ class AbstractNode(Base):
     _node_key = Column('node_key', Unicode(100), unique=True)
 
     # Dates
-    _created_at = Column('created_at', DateTime(), default=datetime.datetime.now)
-    _modified_at = Column('modified_at', DateTime(), default=datetime.datetime.now)
+    _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
+    _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
 
     def __init__(self, *args, **kw):
         super(AbstractNode, self).__init__(*args, **kw)
