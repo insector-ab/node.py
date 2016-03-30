@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 
 from node import Base
 
@@ -9,9 +9,19 @@ class DBUtil(object):
     def __init__(self, conf, *args, **kw):
         self.config = conf
         self.sessionmaker = sessionmaker(autoflush=False)
-        url = u'{0}{1}'.format(self.config.get('url'), self.config.get('db_name'))
+        # mysql://root@localhost:3306/DB_NAME?charset=DB_CHARSET
+        url = u'{0}{1}?charset={2}'.format(self.config.get('url'), self.config.get('db_name'), self.config.get('db_charset'))
         self.engine = create_engine(url, **self.config.get('engine'))
         self.sessionmaker.configure(bind=self.engine)
+
+        def on_engine_connect(dbapi_conn, conn_record):
+            print "on_engine_connect() SET charset & collate"
+            cursor = dbapi_conn.cursor()
+            cursor.execute("SET NAMES '{0}' COLLATE '{1}'".format(self.config.get('db_charset'), self.config.get('db_collate')))
+            cursor.execute("SET CHARACTER SET {0}".format(self.config.get('db_charset')))
+            cursor.execute("SET character_set_connection={0}".format(self.config.get('db_charset')))
+
+        event.listen(self.engine, 'connect', on_engine_connect)
 
     def recreate_db(self):
         # connect to DB
@@ -20,8 +30,8 @@ class DBUtil(object):
             conn.execute("DROP DATABASE {0}".format(self.config.get('db_name')))
         except Exception:
             pass
-        default_character = "DEFAULT CHARACTER SET utf8"
-        default_collate = "DEFAULT COLLATE utf8_general_ci"
+        default_character = "DEFAULT CHARACTER SET {0}".format(self.config.get('db_charset'))
+        default_collate = "DEFAULT COLLATE {0}".format(self.config.get('db_collate'))
         conn.execute("CREATE DATABASE {0} {1} {2}".format(self.config.get('db_name'), default_character, default_collate))
         conn.close()
         print "Recreated database: {0}".format(self.config.get('db_name'))

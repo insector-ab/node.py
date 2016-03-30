@@ -9,6 +9,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from node import Base
 from node.util import get_discriminators, JSONEncodedObj
 
+
 class Edge(Base):
     CHILD = u"child"
     PARENT = u"parent"
