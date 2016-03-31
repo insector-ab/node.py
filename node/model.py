@@ -28,6 +28,10 @@ tz = tzutc()
 def datetime_utc_now():
     return datetime.datetime.now(tz)
 
+# MySQL Datetime dialect, for microsecond precision
+# sqlalchemy.dialects.mysql.DATETIME
+# dateCreated = Column(DATETIME(fsp=6))
+
 class Edge(Base):
     CHILD = u"child"
     PARENT = u"parent"
