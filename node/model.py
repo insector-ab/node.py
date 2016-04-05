@@ -2,7 +2,7 @@
 import datetime
 from dateutil.tz import tzutc
 
-from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, or_, TypeDecorator
+from sqlalchemy import Column, Integer, Unicode, ForeignKey, and_, or_, TypeDecorator
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
