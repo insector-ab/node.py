@@ -3,6 +3,7 @@ import datetime
 from dateutil.tz import tzutc
 
 from sqlalchemy import Column, Integer, Unicode, ForeignKey, DateTime, and_, or_, TypeDecorator
+from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.ext.mutable import MutableDict
@@ -12,7 +13,7 @@ from node.util import get_discriminators, JSONEncodedObj
 
 class UTCDateTime(TypeDecorator):
 
-    impl = DateTime
+    impl = DATETIME
 
     def process_bind_param(self, value, engine):
         if value is not None:
@@ -46,8 +47,8 @@ class Edge(Base):
     _meta_data = Column('meta_data', MutableDict.as_mutable(JSONEncodedObj))
 
     # Dates
-    _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
-    _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
+    _created_at = Column('created_at', UTCDateTime(fsp=6), default=datetime_utc_now)
+    _modified_at = Column('modified_at', UTCDateTime(fsp=6), default=datetime_utc_now)
 
     left_id = Column(Integer, ForeignKey('nodes.id'))
     parent = relationship("Node",
@@ -196,8 +197,8 @@ class AbstractNode(Base):
     _node_key = Column('node_key', Unicode(100), unique=True)
 
     # Dates
-    _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
-    _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
+    _created_at = Column('created_at', UTCDateTime(fsp=6), default=datetime_utc_now)
+    _modified_at = Column('modified_at', UTCDateTime(fsp=6), default=datetime_utc_now)
 
     def __init__(self, *args, **kw):
         super(AbstractNode, self).__init__(*args, **kw)
