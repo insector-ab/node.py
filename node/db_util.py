@@ -7,34 +7,38 @@ from node import Base
 class DBUtil(object):
 
     def __init__(self, conf, *args, **kw):
-        self.config = conf
+        assert 'engine' in conf
+        # defaults
+        self.config = {
+            u'db_charset': u'utf8',
+            u'db_collate': u'utf8_general_ci'
+        }
+        self.config.update(conf)
         self.sessionmaker = sessionmaker(autoflush=False)
-        # mysql://root@localhost:3306/DB_NAME?charset=DB_CHARSET
-        url = u'{0}{1}?charset={2}'.format(self.config.get('url'), self.config.get('db_name'), self.config.get('db_charset'))
-        self.engine = create_engine(url, **self.config.get('engine'))
+        self.engine = create_engine(self.config['engine'], **self.config.get('engine_params', {}))
         self.sessionmaker.configure(bind=self.engine)
 
         def on_engine_connect(dbapi_conn, conn_record):
-            print "on_engine_connect() SET charset & collate"
             cursor = dbapi_conn.cursor()
-            cursor.execute("SET NAMES '{0}' COLLATE '{1}'".format(self.config.get('db_charset'), self.config.get('db_collate')))
-            cursor.execute("SET CHARACTER SET {0}".format(self.config.get('db_charset')))
-            cursor.execute("SET character_set_connection={0}".format(self.config.get('db_charset')))
+            cursor.execute("SET NAMES '{db_charset}' COLLATE '{db_collate}'".format(**self.config))
+            cursor.execute("SET CHARACTER SET {db_charset}".format(**self.config))
+            cursor.execute("SET character_set_connection={db_charset}".format(**self.config))
 
         event.listen(self.engine, 'connect', on_engine_connect)
 
     def recreate_db(self):
+        assert 'db_name' in self.config
         # connect to DB
-        conn = create_engine(self.config.get('url')).connect()
+        conn = create_engine(self.config['engine']).connect()
         try:
-            conn.execute("DROP DATABASE {0}".format(self.config.get('db_name')))
+            conn.execute("DROP DATABASE {db_name}".format(**self.config))
         except Exception:
             pass
-        default_character = "DEFAULT CHARACTER SET {0}".format(self.config.get('db_charset'))
-        default_collate = "DEFAULT COLLATE {0}".format(self.config.get('db_collate'))
+        default_character = "DEFAULT CHARACTER SET {db_charset}".format(**self.config)
+        default_collate = "DEFAULT COLLATE {db_collate}".format(**self.config)
         conn.execute("CREATE DATABASE {0} {1} {2}".format(self.config.get('db_name'), default_character, default_collate))
         conn.close()
-        print "Recreated database: {0}".format(self.config.get('db_name'))
+        print "Recreated database: {db_name}".format(**self.config)
 
     def recreate_tables(self):
         sess = self.new_session()

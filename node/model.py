@@ -207,16 +207,14 @@ class AbstractNode(Base):
         return ".id {0}".format(self.id)
 
     # def __getattribute__(self, attr):
-    #     _attr = '_{0}'.format(attr)
-    #     if not hasattr(self, attr) and hasattr(self, _attr):
-    #     #     return super(AbstractNode, self).__getattribute__(_attr)
-
+    #     if not (attr == '__dict__' or attr == '__class__'):
+    #         print "Getting ", attr , "on", self, attr in self.__class__.__dict__
     #     return super(AbstractNode, self).__getattribute__(attr)
 
     def __getattr__(self, attr):
         attr = '_{0}'.format(attr)
         if attr in self.__class__.__dict__:
-            return getattr(self, attr)
+            return object.__getattr__(self, attr)
         else:
             raise AttributeError
 
