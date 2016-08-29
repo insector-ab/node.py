@@ -214,7 +214,7 @@ class AbstractNode(Base):
     def __getattr__(self, attr):
         attr = '_{0}'.format(attr)
         if attr in self.__class__.__dict__:
-            return object.__getattr__(self, attr)
+            return object.__getattribute__(self, attr)
         else:
             raise AttributeError
 
