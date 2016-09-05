@@ -241,22 +241,22 @@ class AbstractNode(Base):
         return object_session(self)
 
     def _get_children(self, discriminators=None, group=None, relation_type=None, order_by=None):
-        return self._get_related_node_query(self.__class__, Edge.CHILD, discriminators, group, relation_type, order_by).all()
+        return self._get_related_node_query(None, Edge.CHILD, discriminators, group, relation_type, order_by).all()
 
     def _set_children(self, children=[], discriminators=None, group=None, relation_type=None, metadata=[]):
         Edge.update_child_edges(self, children, discriminators=discriminators, group=group, relation_type=relation_type, metadata=metadata)
 
     def _get_parents(self, discriminators=None, group=None, relation_type=None, order_by=None):
-        return self._get_related_node_query(self.__class__, Edge.PARENT, discriminators, group, relation_type, order_by).all()
+        return self._get_related_node_query(None, Edge.PARENT, discriminators, group, relation_type, order_by).all()
 
     def _set_parents(self, parents=[], discriminators=None, group=None, relation_type=None, metadata=[]):
         Edge.update_parent_edges(self, parents, discriminators=discriminators, group=group, relation_type=relation_type, metadata=metadata)
 
     def _get_child(self, discriminators=None, group=None, relation_type=False, order_by=None):
-        return self._get_related_node_query(self.__class__, Edge.CHILD, discriminators, group, relation_type, order_by).first()
+        return self._get_related_node_query(None, Edge.CHILD, discriminators, group, relation_type, order_by).first()
 
     def _get_parent(self, discriminators=None, group=None, relation_type=False, order_by=None):
-        return self._get_related_node_query(self.__class__, Edge.PARENT, discriminators, group, relation_type, order_by).first()
+        return self._get_related_node_query(None, Edge.PARENT, discriminators, group, relation_type, order_by).first()
 
     def _get_child_edges(self, discriminators=None, group=None, relation_type=None, order_by=None):
         return self._get_related_node_query(Edge, Edge.CHILD, discriminators, group, relation_type, order_by).all()
@@ -271,13 +271,15 @@ class AbstractNode(Base):
         return self._get_related_node_query(Edge, Edge.PARENT, discriminators, group, relation_type, order_by).first()
 
     def _get_related_node_query(self, query_cls, relation=Edge.CHILD, discriminators=None, group=None, relation_type=None, order_by=None):
-
-        query = self.session.query(query_cls)
+        node_cls = AbstractNode.get_node_cls()
         if query_cls == Edge:
-            query = query.select_from(self.__class__)
+            query = self.session.query(Edge).select_from(node_cls)
+        else:
+            query = self.session.query(node_cls)
 
         clauses = self._get_related_node_query_clauses(relation, discriminators, group, relation_type)
-        node_edge = (Edge, self.__class__.id == Edge.right_id) if relation == Edge.CHILD else (Edge, self.__class__.id == Edge.left_id)
+        node_edge = (Edge, node_cls.id == Edge.right_id) if relation == Edge.CHILD else (Edge, node_cls.id == Edge.left_id)
+
         query = query.join(node_edge).filter(and_(*clauses))
         if order_by:
             if isinstance(order_by, list):
@@ -290,9 +292,9 @@ class AbstractNode(Base):
         """docstring for _get_related_node_query_clauses"""
         clauses = []
         if relation == Edge.CHILD:
-            clauses.append(Edge.parent == self)
+            clauses.append(Edge.left_id == self.id)
         else:
-            clauses.append(Edge.child == self)
+            clauses.append(Edge.right_id == self.id)
 
         if discriminators:
             clauses.append(self.__class__.discriminator.in_(discriminators))
@@ -304,6 +306,15 @@ class AbstractNode(Base):
             clauses.append(Edge._relation_type == relation_type)
 
         return clauses
+
+    @classmethod
+    def get_node_cls(cls):
+        subclasses = cls.__subclasses__()
+        if len(subclasses) == 0:
+            raise Exception('No Node class defined, extension of AbstractNode required.')
+        elif len(subclasses) > 1:
+            raise Exception('More than one subclass found for AbstractClass')
+        return subclasses[0]
 
     @classmethod
     def get_polymorphic_identity(cls):
