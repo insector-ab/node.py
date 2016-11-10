@@ -4,18 +4,28 @@ from sqlalchemy import create_engine, event
 
 from node import Base
 
+# conf.yaml
+# db_url: mysql://root@localhost:3306/
+# db_name: mydb
+# db_charset: utf8mb4
+# db_collate: utf8mb4_unicode_ci
+# engine_params:
+#     pool_recycle: 3600
+#     echo: False
+
 class DBUtil(object):
 
     def __init__(self, conf, *args, **kw):
-        assert 'engine' in conf
+        assert 'db_url' in conf
+        assert 'db_name' in conf
         # defaults
         self.config = {
-            u'db_charset': u'utf8',
-            u'db_collate': u'utf8_general_ci'
+            u'db_charset': u'utf8mb4',
+            u'db_collate': u'utf8mb4_unicode_ci'
         }
         self.config.update(conf)
         self.sessionmaker = sessionmaker(autoflush=False)
-        self.engine = create_engine(self.config['engine'], **self.config.get('engine_params', {}))
+        self.engine = create_engine(self.get_engine_url(self.config), **self.config.get('engine_params', {}))
         self.sessionmaker.configure(bind=self.engine)
 
         def on_engine_connect(dbapi_conn, conn_record):
@@ -27,9 +37,11 @@ class DBUtil(object):
         event.listen(self.engine, 'connect', on_engine_connect)
 
     def recreate_db(self):
+        assert 'db_url' in self.config
         assert 'db_name' in self.config
+
         # connect to DB
-        conn = create_engine(self.config['engine']).connect()
+        conn = create_engine(self.get_engine_url(self.config)).connect()
         try:
             conn.execute("DROP DATABASE {db_name}".format(**self.config))
         except Exception:
@@ -58,3 +70,8 @@ class DBUtil(object):
 
     def new_session(self):
         return self.sessionmaker()
+
+    @classmethod
+    def get_engine_url(cls, conf):
+        # mysql://root@localhost:3306/DB_NAME?charset=DB_CHARSET
+        return u'{0}{1}?charset={2}'.format(conf.get('db_url'), conf.get('db_name'), conf.get('db_charset'))

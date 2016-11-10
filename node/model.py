@@ -40,7 +40,7 @@ class Edge(Base):
     __tablename__ = "edges"
     id = Column(Integer, primary_key=True)
     _edge_key = Column('edge_key', Unicode(100), unique=True)
-    _name = Column('name', Unicode(255))
+    _name = Column('name', Unicode(191))
     _group_name = Column('group_name', Unicode(100))
     _relation_type = Column('relation_type', Unicode(100))
     _index = Column('index', Integer)

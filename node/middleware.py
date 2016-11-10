@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, event
+from db_util import DBUtil
 
 # conf.yaml
-# url: mysql://root@localhost:3306/
+# db_url: mysql://root@localhost:3306/
 # db_name: mydb
 # db_charset: utf8mb4
 # db_collate: utf8mb4_unicode_ci
-# engine:
+# engine_params:
 #     pool_recycle: 3600
 #     echo: False
 
@@ -18,9 +19,7 @@ class NodeMiddleware(object):
         self.config = kws
         self.environ_key = environ_key
         self.sessionmaker = sessionmaker(autoflush=False)
-        # mysql://root@localhost:3306/DB_NAME?charset=DB_CHARSET
-        url = u'{0}{1}?charset={2}'.format(self.config.get('url'), self.config.get('db_name'), self.config.get('db_charset'))
-        self.engine = create_engine(url, **self.config.get('engine'))
+        self.engine = create_engine(DBUtil.get_engine_url(self.config), **self.config.get('engine_params'))
         self.sessionmaker.configure(bind=self.engine)
 
         def on_engine_connect(dbapi_conn, conn_record):
