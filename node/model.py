@@ -34,10 +34,10 @@ def datetime_utc_now():
 
 
 class Edge(Base):
-    CHILD = u"child"
-    PARENT = u"parent"
+    CHILD = u'child'
+    PARENT = u'parent'
 
-    __tablename__ = "edges"
+    __tablename__ = 'edges'
     id = Column(Integer, primary_key=True)
     _edge_key = Column('edge_key', Unicode(100), unique=True)
     _name = Column('name', Unicode(191))
@@ -51,14 +51,14 @@ class Edge(Base):
     _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
 
     left_id = Column(Integer, ForeignKey('nodes.id'))
-    parent = relationship("Node",
-                          backref="children_relations",
-                          primaryjoin="Edge.left_id==Node.id")
+    parent = relationship('Node',
+                          backref='children_relations',
+                          primaryjoin='Edge.left_id==Node.id')
 
     right_id = Column(Integer, ForeignKey('nodes.id'))
-    child = relationship("Node",
-                         backref="parent_relations",
-                         primaryjoin="Edge.right_id==Node.id",
+    child = relationship('Node',
+                         backref='parent_relations',
+                         primaryjoin='Edge.right_id==Node.id',
                          lazy='joined')
 
     def __init__(self, *args, **kw):
@@ -86,6 +86,7 @@ class Edge(Base):
 
     @property
     def session(self):
+        print self
         return object_session(self)
 
     def _set_metadata_value(self, key, value):
@@ -204,7 +205,7 @@ class AbstractNode(Base):
         super(AbstractNode, self).__init__(*args, **kw)
 
     def __unicode__(self):
-        return ".id {0}".format(self.id)
+        return '.id {0}'.format(self.id)
 
     # def __getattribute__(self, attr):
     #     if not (attr == '__dict__' or attr == '__class__'):
@@ -363,56 +364,47 @@ class DictProperty(object):
 
         return item
 
-class Children(object):
+class RelatedNodes(object):
 
-    def __init__(self, *args, **kws):
-        super(Children, self).__init__()
-        # Node, Article, group_name=None, relation_type=None
-        self.include_subclasses = kws.get('include_subclasses', True)
+    CHILDREN = u'children'
+    PARENTS = u'parents'
+
+    def __init__(self, direction, *args, **kws):
+        super(RelatedNodes, self).__init__()
+        # u'children'/'parents', Node, Article, group_name=None, relation_type=None
+        self.direction = direction
         self.classes = args
+        self.include_subclasses = kws.get('include_subclasses', True)
         self.group_name = kws.get('group_name', None)
         self.relation_type = kws.get('relation_type', None)
 
     def __get__(self, instance, cls):
-        return instance._get_children(discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type)
+        return getattr(instance, '_get_{0}'.format(self.direction))(discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type)
 
     def __set__(self, instance, value):
         discriminators = self.discriminators
         if discriminators:
-            for child in value:
-                if child.discriminator not in discriminators:
-                    raise ValueError("One of the children passed as argument is of wrong type")
-        instance._set_children(value, discriminators=discriminators, group=self.group_name, relation_type=self.relation_type)
+            for node in value:
+                if node.discriminator not in discriminators:
+                    raise ValueError('One of the {0} passed as argument is of wrong type'.format(self.direction))
+
+        getattr(instance, '_set_{0}'.format(self.direction))(value, discriminators=discriminators, group=self.group_name, relation_type=self.relation_type)
 
     @property
     def discriminators(self):
         return get_discriminators(*self.classes, include_subclasses=self.include_subclasses)
 
-class Parents(object):
+class Children(RelatedNodes):
 
     def __init__(self, *args, **kws):
-        super(Parents, self).__init__()
-        # Node, Article, group_name=None, relation_type=None
-        self.include_subclasses = kws.get('include_subclasses', True)
-        self.classes = args
-        self.group_name = kws.get('group_name', None)
-        self.relation_type = kws.get('relation_type', None)
+        super(Children, self).__init__(RelatedNodes.CHILDREN, *args, **kws)
 
-    def __get__(self, instance, cls):
-        return instance._get_parents(discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type)
+class Parents(RelatedNodes):
 
-    def __set__(self, instance, value):
-        discriminators = self.discriminators
-        if discriminators:
-            for parent in value:
-                if parent.discriminator not in discriminators:
-                    raise ValueError("One of the parents passed as argument is of wrong type")
-        instance._set_parents(value, discriminators=discriminators, group=self.group_name, relation_type=self.relation_type)
+    def __init__(self, *args, **kws):
+        super(Parents, self).__init__(RelatedNodes.PARENTS, *args, **kws)
 
-    @property
-    def discriminators(self):
-        return get_discriminators(*self.classes, include_subclasses=self.include_subclasses)
-
-
+# AbstractNode.children = RelatedNodes('children', AbstractNode)
+# AbstractNode.parents = RelatedNodes('parents', AbstractNode)
 # AbstractNode.children = Children(AbstractNode)
 # AbstractNode.parents = Parents(AbstractNode)
