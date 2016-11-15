@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import simplejson
+import inspect
 from sqlalchemy import UnicodeText
 from sqlalchemy.orm import EXT_CONTINUE
 from sqlalchemy.orm.interfaces import MapperExtension
@@ -126,3 +127,10 @@ class JSONEncodedObj(TypeDecorator):
         if value is not None:
             value = simplejson.loads(value, use_decimal=True)
         return value
+
+# list functions defined in module
+def get_module_functions(module):
+    return [func for func in module.__dict__.itervalues() if is_module_function(module, func)]
+
+def is_module_function(module, func):
+    return inspect.isfunction(func) and inspect.getmodule(func) == module
