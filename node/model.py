@@ -86,7 +86,6 @@ class Edge(Base):
 
     @property
     def session(self):
-        print self
         return object_session(self)
 
     def _set_metadata_value(self, key, value):
