@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import uuid
 import datetime
 from dateutil.tz import tzutc
 
@@ -50,15 +51,15 @@ class Edge(Base):
     _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
     _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
 
-    left_id = Column(Integer, ForeignKey('nodes.id'))
+    left_uuid = Column(Unicode(36), ForeignKey('nodes.uuid'))
     parent = relationship('Node',
                           backref='children_relations',
-                          primaryjoin='Edge.left_id==Node.id')
+                          primaryjoin='Edge.left_uuid==Node.uuid')
 
-    right_id = Column(Integer, ForeignKey('nodes.id'))
+    right_uuid = Column(Unicode(36), ForeignKey('nodes.uuid'))
     child = relationship('Node',
                          backref='parent_relations',
-                         primaryjoin='Edge.right_id==Node.id',
+                         primaryjoin='Edge.right_uuid==Node.uuid',
                          lazy='joined')
 
     def __init__(self, *args, **kw):
@@ -187,12 +188,12 @@ class Edge(Base):
 
     @staticmethod
     def remove_all_edges(node):
-        node.session.query(Edge).filter(or_(Edge.left_id == node.id, Edge.right_id == node.id)).delete()
+        node.session.query(Edge).filter(or_(Edge.left_uuid == node.uuid, Edge.right_uuid == node.uuid)).delete()
 
 
 class AbstractNode(Base):
     __abstract__ = True
-    id = Column(Integer, primary_key=True)
+    uuid = Column(Unicode(36), primary_key=True)
     discriminator = Column(Unicode(50))
     _node_key = Column('node_key', Unicode(100), unique=True)
 
@@ -202,9 +203,10 @@ class AbstractNode(Base):
 
     def __init__(self, *args, **kw):
         super(AbstractNode, self).__init__(*args, **kw)
+        self.uuid = unicode(kw.get('uuid', uuid.uuid4()))
 
     def __unicode__(self):
-        return '.id {0}'.format(self.id)
+        return '.uuid {0}'.format(self.uuid)
 
     # def __getattribute__(self, attr):
     #     if not (attr == '__dict__' or attr == '__class__'):
@@ -278,7 +280,7 @@ class AbstractNode(Base):
             query = self.session.query(node_cls)
 
         clauses = self._get_related_node_query_clauses(relation, discriminators, group, relation_type)
-        node_edge = (Edge, node_cls.id == Edge.right_id) if relation == Edge.CHILD else (Edge, node_cls.id == Edge.left_id)
+        node_edge = (Edge, node_cls.uuid == Edge.right_uuid) if relation == Edge.CHILD else (Edge, node_cls.uuid == Edge.left_uuid)
 
         query = query.join(node_edge).filter(and_(*clauses))
         if order_by:
@@ -292,9 +294,9 @@ class AbstractNode(Base):
         """docstring for _get_related_node_query_clauses"""
         clauses = []
         if relation == Edge.CHILD:
-            clauses.append(Edge.left_id == self.id)
+            clauses.append(Edge.left_uuid == self.uuid)
         else:
-            clauses.append(Edge.right_id == self.id)
+            clauses.append(Edge.right_uuid == self.uuid)
 
         if discriminators:
             clauses.append(self.__class__.discriminator.in_(discriminators))
