@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 # aptitude install python-mysqldb
 
 requires = [
-    'SQLAlchemy>=0.7.9',
+    'SQLAlchemy>=1.1.0',
     'MySQL-python>=1.2.5',
     'simplejson>=3.8.2'
 ]
