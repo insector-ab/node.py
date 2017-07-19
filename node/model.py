@@ -120,7 +120,7 @@ class Edge(Base):
                 Edge.check_circular_reference(parent, grandchild)
 
     @staticmethod
-    def create_edge(parent, child, group=None, relation_type=None, metadata=None):
+    def create_edge(parent, child, group=None, relation_type=None, index=None, metadata=None):
         if isinstance(parent, int):
             parent = AbstractNode.get(parent)
         if isinstance(child, int):
@@ -131,6 +131,7 @@ class Edge(Base):
         edge.child = child
         edge._group_name = group
         edge._relation_type = relation_type
+        edge._index = index
         return edge
 
     @staticmethod
@@ -149,6 +150,9 @@ class Edge(Base):
         discriminators=[list of discriminators], group="name of edge group", relation_type="type of relation",
         metadata=[list of dicts] """
         assert isinstance(related_nodes, list)
+        # only allow unique nodes
+        uuids = [related_node.uuid for related_node in related_nodes]
+        assert len(uuids) == len(set(uuids))
         clauses = (Edge.parent == node, ) if relation == Edge.CHILD else (Edge.child == node, )
         if group is not False:
             clauses = clauses + (Edge._group_name == group, )
@@ -165,6 +169,7 @@ class Edge(Base):
         # iterate existing edges
         s = node.session
         existing_edges = s.query(Edge).join(Edge.child if relation == Edge.CHILD else Edge.parent).filter(and_(*clauses)).all()
+        updated_nodes = []
         for edge in existing_edges:
             related_node = edge.child if relation == Edge.CHILD else edge.parent
             if related_node in related_nodes:
@@ -172,18 +177,21 @@ class Edge(Base):
                 if metadata:
                     if i < len(metadata):
                         edge.meta_data = metadata[i]  # set metadata on edge
-                    metadata = metadata[:i] + metadata[i + 1:]  # remove index
-                related_nodes = related_nodes[:i] + related_nodes[i + 1:]  # remove same index
+                edge._index = i
+                updated_nodes.append(related_node)
             else:
                 s.delete(edge)
 
         # iterate non existing nodes and create new edges
         for i, related_node in enumerate(related_nodes):
+            # already updated
+            if related_node in updated_nodes:
+                continue
             md = metadata[i] if metadata and i < len(metadata) else None
             if relation == Edge.CHILD:
-                new_edge = Edge.create_edge(node, related_node, group=group, metadata=md)
+                new_edge = Edge.create_edge(node, related_node, group=group, relation_type=relation_type, index=i, metadata=md)
             else:
-                new_edge = Edge.create_edge(related_node, node, group=group, metadata=md)
+                new_edge = Edge.create_edge(related_node, node, group=group, relation_type=relation_type, index=i, metadata=md)
             s.add(new_edge)
 
     @staticmethod
@@ -378,9 +386,10 @@ class RelatedNodes(object):
         self.include_subclasses = kws.get('include_subclasses', True)
         self.group_name = kws.get('group_name', None)
         self.relation_type = kws.get('relation_type', None)
+        self.order_by = kws.get('order_by', None)
 
     def __get__(self, instance, cls):
-        return getattr(instance, '_get_{0}'.format(self.direction))(discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type)
+        return getattr(instance, '_get_{0}'.format(self.direction))(discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type, order_by=self.order_by)
 
     def __set__(self, instance, value):
         discriminators = self.discriminators
