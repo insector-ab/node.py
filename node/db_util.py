@@ -24,6 +24,8 @@ class DBUtil(object):
             u'db_collate': u'utf8mb4_unicode_ci'
         }
         self.config.update(conf)
+
+    def init_sessionmaker(self):
         self.sessionmaker = sessionmaker(autoflush=False)
         self.engine = create_engine(self.get_engine_url(self.config), **self.config.get('engine_params', {}))
         self.sessionmaker.configure(bind=self.engine)
@@ -41,7 +43,7 @@ class DBUtil(object):
         assert 'db_name' in self.config
 
         # connect to DB
-        conn = create_engine(self.get_engine_url(self.config)).connect()
+        conn = create_engine(self.get_engine_url(self.config, include_db_name=False)).connect()
         try:
             conn.execute("DROP DATABASE {db_name}".format(**self.config))
         except Exception:
@@ -72,6 +74,6 @@ class DBUtil(object):
         return self.sessionmaker()
 
     @classmethod
-    def get_engine_url(cls, conf):
+    def get_engine_url(cls, conf, include_db_name=True):
         # mysql://root@localhost:3306/DB_NAME?charset=DB_CHARSET
-        return u'{0}{1}?charset={2}'.format(conf.get('db_url'), conf.get('db_name'), conf.get('db_charset'))
+        return u'{0}{1}?charset={2}'.format(conf.get('db_url'), conf.get('db_name') if include_db_name else '', conf.get('db_charset'))
