@@ -380,16 +380,17 @@ class RelatedNodes(object):
 
     def __init__(self, direction, *args, **kws):
         super(RelatedNodes, self).__init__()
-        # u'children'/'parents', Node, Article, group_name=None, relation_type=None
+        # u'children'/'parents', Node, Article, group=None, relation_type=None
         self.direction = direction
         self.classes = args
         self.include_subclasses = kws.get('include_subclasses', True)
-        self.group_name = kws.get('group_name', None)
+        # group_name
+        self.group = kws.get('group', None)
         self.relation_type = kws.get('relation_type', None)
         self.order_by = kws.get('order_by', None)
 
     def __get__(self, instance, cls):
-        return getattr(instance, '_get_{0}'.format(self.direction))(discriminators=self.discriminators, group=self.group_name, relation_type=self.relation_type, order_by=self.order_by)
+        return getattr(instance, '_get_{0}'.format(self.direction))(discriminators=self.discriminators, group=self.group, relation_type=self.relation_type, order_by=self.order_by)
 
     def __set__(self, instance, value):
         discriminators = self.discriminators
@@ -398,7 +399,7 @@ class RelatedNodes(object):
                 if node.discriminator not in discriminators:
                     raise ValueError('One of the {0} passed as argument is of wrong type'.format(self.direction))
 
-        getattr(instance, '_set_{0}'.format(self.direction))(value, discriminators=discriminators, group=self.group_name, relation_type=self.relation_type)
+        getattr(instance, '_set_{0}'.format(self.direction))(value, discriminators=discriminators, group=self.group, relation_type=self.relation_type)
 
     @property
     def discriminators(self):
