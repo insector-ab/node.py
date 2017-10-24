@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import uuid
 import datetime
+import uuid
 from dateutil.tz import tzutc
 
 from sqlalchemy import Column, Integer, Unicode, ForeignKey, and_, or_, TypeDecorator, DateTime
@@ -9,7 +9,7 @@ from sqlalchemy.orm.session import object_session
 from sqlalchemy.ext.mutable import MutableDict
 
 from node import Base
-from node.util import get_discriminators, JSONEncodedObj
+from node.util import get_discriminators, JSONEncodedObj, validate_uuid4
 
 
 class UTCDateTime(TypeDecorator):
@@ -211,7 +211,13 @@ class AbstractNode(Base):
 
     def __init__(self, *args, **kw):
         super(AbstractNode, self).__init__(*args, **kw)
-        self.uuid = unicode(kw.get('uuid', uuid.uuid4()))
+        if 'uuid' in kw:
+            uuid_string = kw.get('uuid')
+            if not validate_uuid4(uuid_string):
+                raise Exception('Invalid uuid')
+        else:
+            uuid_string = uuid.uuid4()
+        self.uuid = unicode(uuid_string)
 
     def __unicode__(self):
         return '.uuid {0}'.format(self.uuid)
