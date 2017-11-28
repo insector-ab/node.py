@@ -1,9 +1,9 @@
 # node.py
 
-### Usage
+## Install
 
 ```sh
-pip install git+ssh://git@github.com/insector-ab/node.py.git
+pip install git+https://github.com/insector-ab/node.py.git
 ```
 
 ---
