@@ -9,6 +9,7 @@ setup(
     install_requires=[
         'SQLAlchemy',
         'MySQL-python',
-        'simplejson'
+        'simplejson',
+        'dateutil'
     ]
 )
