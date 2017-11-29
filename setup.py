@@ -10,6 +10,6 @@ setup(
         'SQLAlchemy',
         'MySQL-python',
         'simplejson',
-        'dateutil'
+        'python-dateutil'
     ]
 )
