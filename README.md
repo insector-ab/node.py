@@ -1,4 +1,5 @@
 # node.py
+> Graph model lib for SQLAlchemy
 
 ## Install
 
