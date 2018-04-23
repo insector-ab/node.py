@@ -32,11 +32,13 @@ class NodeMiddleware(object):
         event.listen(self.engine, 'connect', on_engine_connect)
 
     def __call__(self, environ, start_response):
-        # get session
-        environ[self.environ_key] = self.sessionmaker()
-        # wsgi call
-        response = self.app(environ, start_response)
-        # close session
-        environ[self.environ_key].close()
-        # return response
-        return response
+        try:
+            # get session
+            environ[self.environ_key] = self.sessionmaker()
+            # wsgi call
+            response = self.app(environ, start_response)
+            # return response
+            return response
+        finally:
+            # close session
+            environ[self.environ_key].close()

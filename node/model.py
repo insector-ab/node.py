@@ -48,8 +48,8 @@ class Edge(Base):
     _meta_data = Column('meta_data', MutableDict.as_mutable(JSONEncodedObj))
 
     # Dates
-    _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
-    _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
+    _created_at = Column('created_at', UTCDateTime())
+    _modified_at = Column('modified_at', UTCDateTime())
 
     left_uuid = Column(Unicode(36), ForeignKey('nodes.uuid'))
     parent = relationship('Node',
@@ -64,6 +64,9 @@ class Edge(Base):
 
     def __init__(self, *args, **kw):
         super(Edge, self).__init__(*args, **kw)
+        now = datetime_utc_now()
+        self._created_at = now
+        self._modified_at = now
 
     # def __getattribute__(self, attr):
     #     # _attr = '_{0}'.format(attr)
@@ -206,8 +209,8 @@ class AbstractNode(Base):
     _node_key = Column('node_key', Unicode(100), unique=True)
 
     # Dates
-    _created_at = Column('created_at', UTCDateTime(), default=datetime_utc_now)
-    _modified_at = Column('modified_at', UTCDateTime(), default=datetime_utc_now)
+    _created_at = Column('created_at', UTCDateTime())
+    _modified_at = Column('modified_at', UTCDateTime())
 
     def __init__(self, *args, **kw):
         super(AbstractNode, self).__init__(*args, **kw)
@@ -218,6 +221,9 @@ class AbstractNode(Base):
         else:
             uuid_string = uuid.uuid4()
         self.uuid = unicode(uuid_string)
+        now = datetime_utc_now()
+        self._created_at = now
+        self._modified_at = now
 
     def __unicode__(self):
         return '.uuid {0}'.format(self.uuid)
