@@ -77,16 +77,16 @@ class Edge(Base):
 
     def __getattr__(self, attr):
         attr = '_{0}'.format(attr)
-        if attr in self.__class__.__dict__:
-            return getattr(self, attr)
+        if attr in dir(self):
+            return super(Edge, self).__getattr__(attr)
         else:
             raise AttributeError
 
     def __setattr__(self, attr, value):
-        if attr in self.__class__.__dict__ or attr == '_sa_instance_state':
-            object.__setattr__(self, attr, value)
+        if attr in dir(self) or attr == '_sa_instance_state':
+            super(Edge, self).__setattr__(attr, value)
         else:
-            object.__setattr__(self, '_{0}'.format(attr), value)
+            super(Edge, self).__setattr__('_{0}'.format(attr), value)
 
     @property
     def session(self):
@@ -236,16 +236,16 @@ class AbstractNode(Base):
 
     def __getattr__(self, attr):
         attr = '_{0}'.format(attr)
-        if attr in self.__class__.__dict__:
-            return object.__getattribute__(self, attr)
+        if attr in dir(self):
+            return super(AbstractNode, self).__getattr__(attr)
         else:
             raise AttributeError
 
     def __setattr__(self, attr, value):
-        if attr in self.__class__.__dict__ or attr == '_sa_instance_state':
-            object.__setattr__(self, attr, value)
+        if attr in dir(self) or attr == '_sa_instance_state':
+            super(AbstractNode, self).__setattr__(attr, value)
         else:
-            object.__setattr__(self, '_{0}'.format(attr), value)
+            super(AbstractNode, self).__setattr__('_{0}'.format(attr), value)
 
     @property
     def classname(self):
