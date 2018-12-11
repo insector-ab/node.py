@@ -8,8 +8,8 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'SQLAlchemy >= 1.3',
-        'mysql-connector-python => 8.0.13',
+        'SQLAlchemy',
+        'MySQL-python',
         'simplejson',
         'python-dateutil'
     ]
