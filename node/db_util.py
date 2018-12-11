@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
-# from sqlalchemy import create_engine, event
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 
 from node import Base
 
@@ -14,16 +13,16 @@ from node import Base
 #     pool_recycle: 3600
 #     echo: False
 
-
 class DBUtil(object):
 
     def __init__(self, conf, *args, **kw):
         assert 'db_url' in conf
         assert 'db_name' in conf
         # defaults
-        self.config = {}
-        # u'db_charset': u'utf8mb4',
-        # u'db_collate': u'utf8mb4_unicode_ci'
+        self.config = {
+            u'db_charset': u'utf8mb4',
+            u'db_collate': u'utf8mb4_unicode_ci'
+        }
         self.config.update(conf)
 
     def init_sessionmaker(self):
@@ -31,13 +30,13 @@ class DBUtil(object):
         self.engine = create_engine(self.get_engine_url(self.config), **self.config.get('engine_params', {}))
         self.sessionmaker.configure(bind=self.engine)
 
-        # def on_engine_connect(dbapi_conn, conn_record):
-        #     cursor = dbapi_conn.cursor()
-        #     cursor.execute("SET NAMES '{db_charset}' COLLATE '{db_collate}'".format(**self.config))
-        #     cursor.execute("SET CHARACTER SET {db_charset}".format(**self.config))
-        #     cursor.execute("SET character_set_connection={db_charset}".format(**self.config))
+        def on_engine_connect(dbapi_conn, conn_record):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("SET NAMES '{db_charset}' COLLATE '{db_collate}'".format(**self.config))
+            cursor.execute("SET CHARACTER SET {db_charset}".format(**self.config))
+            cursor.execute("SET character_set_connection={db_charset}".format(**self.config))
 
-        # event.listen(self.engine, 'connect', on_engine_connect)
+        event.listen(self.engine, 'connect', on_engine_connect)
 
     def recreate_db(self):
         assert 'db_url' in self.config
@@ -49,10 +48,9 @@ class DBUtil(object):
             conn.execute("DROP DATABASE {db_name}".format(**self.config))
         except Exception:
             pass
-        # default_character = "DEFAULT CHARACTER SET {db_charset}".format(**self.config)
-        # default_collate = "DEFAULT COLLATE {db_collate}".format(**self.config)
-        # conn.execute("CREATE DATABASE {0} {1} {2}".format(self.config.get('db_name'), default_character, default_collate))
-        conn.execute("CREATE DATABASE {0}".format(self.config.get('db_name')))
+        default_character = "DEFAULT CHARACTER SET {db_charset}".format(**self.config)
+        default_collate = "DEFAULT COLLATE {db_collate}".format(**self.config)
+        conn.execute("CREATE DATABASE {0} {1} {2}".format(self.config.get('db_name'), default_character, default_collate))
         conn.close()
         print "Recreated database: {db_name}".format(**self.config)
 
@@ -78,5 +76,4 @@ class DBUtil(object):
     @classmethod
     def get_engine_url(cls, conf, include_db_name=True):
         # mysql://root@localhost:3306/DB_NAME?charset=DB_CHARSET
-        # return u'{0}{1}?charset={2}'.format(conf.get('db_url'), conf.get('db_name') if include_db_name else '', conf.get('db_charset'))
-        return u'{0}{1}'.format(conf.get('db_url'), conf.get('db_name') if include_db_name else '')
+        return u'{0}{1}?charset={2}'.format(conf.get('db_url'), conf.get('db_name') if include_db_name else '', conf.get('db_charset'))

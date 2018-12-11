@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import sessionmaker
-# from sqlalchemy import create_engine, event
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from db_util import DBUtil
 
 # conf.yaml
@@ -13,7 +12,6 @@ from db_util import DBUtil
 #     pool_recycle: 3600
 #     echo: False
 
-
 class NodeMiddleware(object):
 
     def __init__(self, app, environ_key='node.session', **kws):
@@ -24,14 +22,14 @@ class NodeMiddleware(object):
         self.engine = create_engine(DBUtil.get_engine_url(self.config), **self.config.get('engine_params'))
         self.sessionmaker.configure(bind=self.engine)
 
-        # def on_engine_connect(dbapi_conn, conn_record):
-        #     print "on_engine_connect() SET charset & collate"
-        #     cursor = dbapi_conn.cursor()
-        #     cursor.execute("SET NAMES '{0}' COLLATE '{1}'".format(self.config.get('db_charset'), self.config.get('db_collate')))
-        #     cursor.execute("SET CHARACTER SET {0}".format(self.config.get('db_charset')))
-        #     cursor.execute("SET character_set_connection={0}".format(self.config.get('db_charset')))
+        def on_engine_connect(dbapi_conn, conn_record):
+            print "on_engine_connect() SET charset & collate"
+            cursor = dbapi_conn.cursor()
+            cursor.execute("SET NAMES '{0}' COLLATE '{1}'".format(self.config.get('db_charset'), self.config.get('db_collate')))
+            cursor.execute("SET CHARACTER SET {0}".format(self.config.get('db_charset')))
+            cursor.execute("SET character_set_connection={0}".format(self.config.get('db_charset')))
 
-        # event.listen(self.engine, 'connect', on_engine_connect)
+        event.listen(self.engine, 'connect', on_engine_connect)
 
     def __call__(self, environ, start_response):
         try:
