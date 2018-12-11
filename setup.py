@@ -9,7 +9,7 @@ setup(
     zip_safe=False,
     install_requires=[
         'SQLAlchemy',
-        'pymysql',
+        'mysql-connector-python',
         'simplejson',
         'python-dateutil'
     ]
